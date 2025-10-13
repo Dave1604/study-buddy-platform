@@ -16,21 +16,6 @@ const Quiz = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState(null);
 
-  useEffect(() => {
-    fetchQuiz();
-  }, [id, fetchQuiz]);
-
-  useEffect(() => {
-    if (timeLeft > 0 && !result) {
-      const timer = setTimeout(() => {
-        setTimeLeft(timeLeft - 1);
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && quiz && !result) {
-      handleSubmit();
-    }
-  }, [timeLeft, result]);
-
   // Shuffle array function (Fisher-Yates algorithm)
   const shuffleArray = (array) => {
     const shuffled = [...array];
@@ -70,6 +55,21 @@ const Quiz = () => {
       setLoading(false);
     }
   }, [id, navigate]);
+
+  useEffect(() => {
+    fetchQuiz();
+  }, [fetchQuiz]);
+
+  useEffect(() => {
+    if (timeLeft > 0 && !result) {
+      const timer = setTimeout(() => {
+        setTimeLeft(timeLeft - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (timeLeft === 0 && quiz && !result) {
+      handleSubmit();
+    }
+  }, [timeLeft, result]);
 
   const handleAnswer = (questionId, answer) => {
     setAnswers({

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Filter } from 'lucide-react';
 import CourseCard from '../components/CourseCard';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -16,9 +16,9 @@ const Courses = () => {
 
   useEffect(() => {
     fetchCourses();
-  }, [filters]);
+  }, [filters, fetchCourses]);
 
-  const fetchCourses = async () => {
+  const fetchCourses = useCallback(async () => {
     try {
       setLoading(true);
       const response = await courseService.getAllCourses(filters);
@@ -28,7 +28,7 @@ const Courses = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
   const handleSearch = (e) => {
     setFilters({ ...filters, search: e.target.value });

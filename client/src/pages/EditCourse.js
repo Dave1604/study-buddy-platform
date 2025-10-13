@@ -34,10 +34,6 @@ const EditCourse = () => {
     isPublished: false
   });
 
-  useEffect(() => {
-    fetchCourse();
-  }, [id, fetchCourse]);
-
   const fetchCourse = useCallback(async () => {
     try {
       setLoading(true);
@@ -78,6 +74,10 @@ const EditCourse = () => {
       setLoading(false);
     }
   }, [id, navigate]);
+
+  useEffect(() => {
+    fetchCourse();
+  }, [fetchCourse]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;

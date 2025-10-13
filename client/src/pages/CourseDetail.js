@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Clock, BookOpen, Users, Award, CheckCircle, PlayCircle } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -19,9 +19,9 @@ const CourseDetail = () => {
 
   useEffect(() => {
     fetchCourseData();
-  }, [id]);
+  }, [id, fetchCourseData]);
 
-  const fetchCourseData = async () => {
+  const fetchCourseData = useCallback(async () => {
     try {
       const [courseRes, quizzesRes] = await Promise.all([
         courseService.getCourse(id),
@@ -41,7 +41,7 @@ const CourseDetail = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, user]);
 
   const handleEnroll = async () => {
     try {
