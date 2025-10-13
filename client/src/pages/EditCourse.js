@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Save } from 'lucide-react';
 import { courseService } from '../services/api';
@@ -10,7 +10,7 @@ const EditCourse = () => {
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [course, setCourse] = useState(null);
+  const [, setCourse] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -36,9 +36,9 @@ const EditCourse = () => {
 
   useEffect(() => {
     fetchCourse();
-  }, [id]);
+  }, [id, fetchCourse]);
 
-  const fetchCourse = async () => {
+  const fetchCourse = useCallback(async () => {
     try {
       setLoading(true);
       const response = await courseService.getCourse(id);
@@ -77,7 +77,7 @@ const EditCourse = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Clock, CheckCircle, XCircle, Award } from 'lucide-react';
+import { Clock, CheckCircle, XCircle } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { quizService } from '../services/api';
 import './Quiz.css';
@@ -18,7 +18,7 @@ const Quiz = () => {
 
   useEffect(() => {
     fetchQuiz();
-  }, [id]);
+  }, [id, fetchQuiz]);
 
   useEffect(() => {
     if (timeLeft > 0 && !result) {
@@ -41,7 +41,7 @@ const Quiz = () => {
     return shuffled;
   };
 
-  const fetchQuiz = async () => {
+  const fetchQuiz = useCallback(async () => {
     try {
       const response = await quizService.getQuiz(id);
       const quizData = response.data.data.quiz;
@@ -69,7 +69,7 @@ const Quiz = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
 
   const handleAnswer = (questionId, answer) => {
     setAnswers({
