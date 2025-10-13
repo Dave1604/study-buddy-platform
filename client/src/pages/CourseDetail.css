@@ -1,0 +1,281 @@
+.course-detail-page {
+  min-height: calc(100vh - 70px);
+}
+
+.course-header {
+  background: linear-gradient(135deg, #0EA5E9 0%, #0284C7 50%, #0369A1 100%);
+  color: white;
+  padding: 60px 0;
+}
+
+.course-header-content {
+  max-width: 900px;
+}
+
+.course-header h1 {
+  font-size: 42px;
+  font-weight: 800;
+  margin: 16px 0;
+  line-height: 1.2;
+}
+
+.course-header p {
+  font-size: 18px;
+  line-height: 1.6;
+  opacity: 0.95;
+  margin-bottom: 24px;
+}
+
+.course-meta-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin: 24px 0;
+}
+
+.instructor-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  margin: 24px 0;
+}
+
+.instructor-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: white;
+}
+
+.instructor-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.instructor-label {
+  font-size: 12px;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.instructor-name {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.enrollment-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 16px;
+  border-radius: 8px;
+  margin-top: 16px;
+}
+
+.course-progress-bar {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-text {
+  font-weight: 600;
+}
+
+.course-content-section {
+  padding: 40px 0;
+}
+
+.content-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 2px solid #e5e7eb;
+  margin-bottom: 32px;
+}
+
+.content-tabs button {
+  padding: 12px 24px;
+  background: none;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.3s ease;
+}
+
+.content-tabs button:hover {
+  color: #0EA5E9;
+}
+
+.content-tabs button.active {
+  color: #0EA5E9;
+  border-bottom-color: #0EA5E9;
+}
+
+.content-body {
+  background: white;
+  padding: 32px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+}
+
+.content-section {
+  margin-bottom: 32px;
+}
+
+.content-section h3 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 16px;
+}
+
+.objectives-list {
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+
+.objectives-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 16px;
+  color: #374151;
+}
+
+.prerequisites-list {
+  list-style: disc;
+  margin-left: 24px;
+  color: #6b7280;
+}
+
+.prerequisites-list li {
+  margin-bottom: 8px;
+}
+
+.lesson-item {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+}
+
+.lesson-item:hover {
+  border-color: #0EA5E9;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+.lesson-number {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f0f9ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #0EA5E9;
+  flex-shrink: 0;
+}
+
+.lesson-content {
+  flex: 1;
+}
+
+.lesson-content h4 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.lesson-content p {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.lesson-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.lesson-status {
+  flex-shrink: 0;
+}
+
+.quizzes-tab {
+  display: grid;
+  gap: 20px;
+}
+
+.quiz-item {
+  padding: 24px;
+}
+
+.quiz-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.quiz-header h4 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.quiz-item p {
+  color: #6b7280;
+  margin-bottom: 16px;
+}
+
+.quiz-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.quiz-meta span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 768px) {
+  .course-header h1 {
+    font-size: 32px;
+  }
+  
+  .content-body {
+    padding: 20px;
+  }
+  
+  .lesson-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
