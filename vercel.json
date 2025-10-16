@@ -23,20 +23,7 @@
       "dest": "/client/build/index.html"
     }
   ],
-  "rewrites": [
-    {
-      "source": "/((?!api).*)",
-      "destination": "/client/build/index.html"
-    }
-  ],
   "env": {
     "NODE_ENV": "production"
-  },
-  "functions": {
-    "server/index.js": {
-      "maxDuration": 30
-    }
-  },
-  "buildCommand": "cd client && npm run build",
-  "installCommand": "npm install"
+  }
 }
