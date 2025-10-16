@@ -23,12 +23,6 @@
       "dest": "/client/build/index.html"
     }
   ],
-  "rewrites": [
-    {
-      "source": "/((?!api).*)",
-      "destination": "/client/build/index.html"
-    }
-  ],
   "env": {
     "NODE_ENV": "production"
   }
