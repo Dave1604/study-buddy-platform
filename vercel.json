@@ -20,7 +20,13 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/client/index.html"
+      "dest": "/client/build/index.html"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/((?!api).*)",
+      "destination": "/client/build/index.html"
     }
   ],
   "env": {
