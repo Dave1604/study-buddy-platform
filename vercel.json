@@ -36,5 +36,6 @@
     "server/index.js": {
       "maxDuration": 30
     }
-  }
+  },
+  "buildCommand": "cd client && npm run build"
 }
