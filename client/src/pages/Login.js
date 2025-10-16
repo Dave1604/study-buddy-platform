@@ -26,18 +26,26 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setError('');
     setLoading(true);
 
-    const result = await login(formData);
-    
-    if (result.success) {
-      navigate('/dashboard');
-    } else {
-      setError(result.error);
+    try {
+      const result = await login(formData);
+      
+      if (result.success) {
+        navigate('/dashboard');
+      } else {
+        setError(result.error);
+        // Prevent form from submitting further
+        return false;
+      }
+    } catch (error) {
+      console.error('Login form error:', error);
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
@@ -58,7 +66,7 @@ const Login = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="auth-form">
+        <form onSubmit={handleSubmit} className="auth-form" noValidate>
           <div className="input-group">
             <label htmlFor="email">Email Address</label>
             <div className="input-with-icon">
@@ -99,7 +107,17 @@ const Login = () => {
             </div>
           </div>
 
-          <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+          <button 
+            type="submit" 
+            className="btn btn-primary btn-block" 
+            disabled={loading}
+            onClick={(e) => {
+              if (loading) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }}
+          >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
