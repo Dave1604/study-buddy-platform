@@ -111,3 +111,16 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* New styles for course sections */
+.courses-section {
+  margin-bottom: 48px;
+}
+
+.section-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 16px;
+  text-align: center;
+}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, BookOpen } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import CourseCard from '../components/CourseCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { courseService } from '../services/api';
@@ -7,24 +8,39 @@ import './Courses.css';
 
 const Courses = () => {
   const [courses, setCourses] = useState([]);
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     search: '',
     category: '',
     level: ''
   });
+  const { user } = useAuth();
 
   const fetchCourses = useCallback(async () => {
     try {
       setLoading(true);
       const response = await courseService.getAllCourses(filters);
-      setCourses(response.data.data.courses);
+      const allCourses = response.data.data.courses;
+      
+      // Separate enrolled and non-enrolled courses
+      if (user && user.enrolledCourses) {
+        const enrolledIds = user.enrolledCourses.map(course => course._id || course);
+        const enrolled = allCourses.filter(course => enrolledIds.includes(course._id));
+        const notEnrolled = allCourses.filter(course => !enrolledIds.includes(course._id));
+        
+        setEnrolledCourses(enrolled);
+        setCourses(notEnrolled);
+      } else {
+        setCourses(allCourses);
+        setEnrolledCourses([]);
+      }
     } catch (error) {
       console.error('Error fetching courses:', error);
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, user]);
 
   useEffect(() => {
     fetchCourses();
@@ -87,21 +103,44 @@ const Courses = () => {
 
         {loading ? (
           <LoadingSpinner message="Loading courses..." />
-        ) : courses.length > 0 ? (
-          <>
-            <div className="courses-count">
-              {courses.length} {courses.length === 1 ? 'course' : 'courses'} found
-            </div>
-            <div className="courses-grid">
-              {courses.map((course) => (
-                <CourseCard key={course._id} course={course} />
-              ))}
-            </div>
-          </>
         ) : (
-          <div className="no-courses">
-            <p>No courses found matching your criteria.</p>
-          </div>
+          <>
+            {/* Enrolled Courses Section */}
+            {enrolledCourses.length > 0 && (
+              <div className="courses-section">
+                <h2 className="section-title">My Enrolled Courses</h2>
+                <div className="courses-count">
+                  {enrolledCourses.length} enrolled {enrolledCourses.length === 1 ? 'course' : 'courses'}
+                </div>
+                <div className="courses-grid">
+                  {enrolledCourses.map((course) => (
+                    <CourseCard key={course._id} course={course} isEnrolled={true} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Available Courses Section */}
+            {courses.length > 0 ? (
+              <div className="courses-section">
+                <h2 className="section-title">Available Courses</h2>
+                <div className="courses-count">
+                  {courses.length} available {courses.length === 1 ? 'course' : 'courses'}
+                </div>
+                <div className="courses-grid">
+                  {courses.map((course) => (
+                    <CourseCard key={course._id} course={course} isEnrolled={false} />
+                  ))}
+                </div>
+              </div>
+            ) : enrolledCourses.length === 0 && (
+              <div className="no-courses">
+                <BookOpen size={64} />
+                <h3>No courses found</h3>
+                <p>No courses match your current search criteria. Try adjusting your filters.</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
