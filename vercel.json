@@ -37,5 +37,6 @@
       "maxDuration": 30
     }
   },
-  "buildCommand": "cd client && npm run build"
+  "buildCommand": "cd client && npm run build",
+  "installCommand": "npm install"
 }
