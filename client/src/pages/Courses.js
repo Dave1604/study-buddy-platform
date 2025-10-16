@@ -14,10 +14,6 @@ const Courses = () => {
     level: ''
   });
 
-  useEffect(() => {
-    fetchCourses();
-  }, [filters, fetchCourses]);
-
   const fetchCourses = useCallback(async () => {
     try {
       setLoading(true);
@@ -29,6 +25,10 @@ const Courses = () => {
       setLoading(false);
     }
   }, [filters]);
+
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
 
   const handleSearch = (e) => {
     setFilters({ ...filters, search: e.target.value });

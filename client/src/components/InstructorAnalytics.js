@@ -8,7 +8,6 @@ import {
   Award, 
   Target,
   Calendar,
-  Mail,
   CheckCircle,
   AlertCircle,
   XCircle
@@ -37,13 +36,6 @@ const InstructorAnalytics = () => {
     }
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
 
   const formatTimeAgo = (dateString) => {
     const now = new Date();

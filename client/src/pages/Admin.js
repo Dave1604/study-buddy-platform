@@ -5,22 +5,19 @@ import {
   Award, 
   TrendingUp, 
   Trash2, 
-  Edit, 
   UserCheck, 
   Shield, 
   BarChart3, 
   Clock, 
   Mail,
-  Calendar,
   Activity,
-  AlertTriangle,
   CheckCircle,
   XCircle,
   Eye,
   Settings
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { userService, courseService, progressService } from '../services/api';
+import { userService, courseService } from '../services/api';
 import './Admin.css';
 
 const Admin = () => {

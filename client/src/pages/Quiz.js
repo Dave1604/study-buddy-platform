@@ -60,25 +60,7 @@ const Quiz = () => {
     fetchQuiz();
   }, [fetchQuiz]);
 
-  useEffect(() => {
-    if (timeLeft > 0 && !result) {
-      const timer = setTimeout(() => {
-        setTimeLeft(timeLeft - 1);
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && quiz && !result) {
-      handleSubmit();
-    }
-  }, [timeLeft, result]);
-
-  const handleAnswer = (questionId, answer) => {
-    setAnswers({
-      ...answers,
-      [questionId]: answer
-    });
-  };
-
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (isSubmitting) return;
     
     const unanswered = quiz.questions.length - Object.keys(answers).length;
@@ -110,6 +92,24 @@ const Quiz = () => {
     } finally {
       setIsSubmitting(false);
     }
+  }, [isSubmitting, quiz, answers, id, timeLeft]);
+
+  useEffect(() => {
+    if (timeLeft > 0 && !result) {
+      const timer = setTimeout(() => {
+        setTimeLeft(timeLeft - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (timeLeft === 0 && quiz && !result) {
+      handleSubmit();
+    }
+  }, [timeLeft, result, handleSubmit, quiz]);
+
+  const handleAnswer = (questionId, answer) => {
+    setAnswers({
+      ...answers,
+      [questionId]: answer
+    });
   };
 
   const formatTime = (seconds) => {

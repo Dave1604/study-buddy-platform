@@ -17,10 +17,6 @@ const CourseDetail = () => {
   const [enrolling, setEnrolling] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
 
-  useEffect(() => {
-    fetchCourseData();
-  }, [id, fetchCourseData]);
-
   const fetchCourseData = useCallback(async () => {
     try {
       const [courseRes, quizzesRes] = await Promise.all([
@@ -42,6 +38,10 @@ const CourseDetail = () => {
       setLoading(false);
     }
   }, [id, user]);
+
+  useEffect(() => {
+    fetchCourseData();
+  }, [fetchCourseData]);
 
   const handleEnroll = async () => {
     try {
