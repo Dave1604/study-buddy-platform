@@ -1,12 +1,14 @@
 {
   "version": 2,
+  "installCommand": "npm install && cd client && npm install",
+  "buildCommand": "cd client && npm run build",
   "builds": [
     {
       "src": "server/index.js",
       "use": "@vercel/node"
     },
     {
-      "src": "public/**",
+      "src": "client/build/**",
       "use": "@vercel/static"
     }
   ],
@@ -16,24 +18,20 @@
       "dest": "/server/index.js"
     },
     {
-      "src": "/static/(.*)",
-      "dest": "/public/static/$1"
+      "src": "/static/css/(.*)",
+      "dest": "/client/build/static/css/$1"
     },
     {
-      "src": "/favicon.ico",
-      "dest": "/public/favicon.ico"
+      "src": "/static/js/(.*)",
+      "dest": "/client/build/static/js/$1"
     },
     {
-      "src": "/manifest.json",
-      "dest": "/public/manifest.json"
-    },
-    {
-      "src": "/asset-manifest.json",
-      "dest": "/public/asset-manifest.json"
+      "src": "/(.*\\.(ico|json|png|jpg|svg))",
+      "dest": "/client/build/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/public/index.html"
+      "dest": "/client/build/index.html"
     }
   ]
 }
