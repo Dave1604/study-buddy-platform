@@ -61,3 +61,6 @@ app.listen(PORT, () => {
   console.log(`🚀 Study Buddy server running on port ${PORT}`);
   console.log(`📚 Environment: ${process.env.NODE_ENV}`);
 });
+
+// Export for Vercel serverless
+module.exports = app;
