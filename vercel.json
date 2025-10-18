@@ -8,30 +8,21 @@
       "use": "@vercel/node"
     },
     {
-      "src": "client/build/**",
-      "use": "@vercel/static"
+      "src": "client/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
+      }
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "/server/index.js"
+      "source": "/api/(.*)",
+      "destination": "/server/index.js"
     },
     {
-      "src": "/static/css/(.*)",
-      "dest": "/client/build/static/css/$1"
-    },
-    {
-      "src": "/static/js/(.*)",
-      "dest": "/client/build/static/js/$1"
-    },
-    {
-      "src": "/(.*\\.(ico|json|png|jpg|svg))",
-      "dest": "/client/build/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/client/build/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
