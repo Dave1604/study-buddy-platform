@@ -109,7 +109,12 @@
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #6b7280;
+  color: #374151; /* darker for better contrast */
+  font-weight: 600;
+}
+
+.meta-item svg {
+  color: #111827;
 }
 
 .course-rating {

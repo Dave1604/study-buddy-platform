@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Clock, BookOpen, Users, Award, CheckCircle, PlayCircle } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -16,6 +16,42 @@ const CourseDetail = () => {
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const ytApiLoadedRef = useRef(false);
+  const playersRef = useRef({});
+  const [unavailableMap, setUnavailableMap] = useState({});
+
+  const formatTotalMinutes = (minutes) => {
+    const hrs = Math.floor((minutes || 0) / 60);
+    const mins = Math.max(0, Math.round((minutes || 0) % 60));
+    return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+  };
+
+  const loadYouTubeAPI = () => {
+    if (ytApiLoadedRef.current || window.YT?.Player) return Promise.resolve();
+    return new Promise((resolve) => {
+      const existing = document.getElementById('youtube-iframe-api');
+      if (existing) {
+        if (window.YT?.Player) {
+          ytApiLoadedRef.current = true;
+          resolve();
+        } else {
+          window.onYouTubeIframeAPIReady = () => {
+            ytApiLoadedRef.current = true;
+            resolve();
+          };
+        }
+        return;
+      }
+      const tag = document.createElement('script');
+      tag.id = 'youtube-iframe-api';
+      tag.src = 'https://www.youtube.com/iframe_api';
+      window.onYouTubeIframeAPIReady = () => {
+        ytApiLoadedRef.current = true;
+        resolve();
+      };
+      document.body.appendChild(tag);
+    });
+  };
 
   const fetchCourseData = useCallback(async () => {
     try {
@@ -42,6 +78,59 @@ const CourseDetail = () => {
   useEffect(() => {
     fetchCourseData();
   }, [fetchCourseData]);
+
+  // Initialize YouTube players on lessons tab to capture durations
+  useEffect(() => {
+    const initPlayers = async () => {
+      if (!course || activeTab !== 'lessons' || !(progress !== null)) return;
+      const lessonsWithVideo = course.lessons.filter(l => l.videoUrl);
+      if (lessonsWithVideo.length === 0) return;
+
+      await loadYouTubeAPI();
+
+      lessonsWithVideo.forEach((lesson) => {
+        const videoId = (lesson.videoUrl || '').match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/)?.[2];
+        if (!videoId) return;
+        const elementId = `player-${lesson._id}`;
+        if (playersRef.current[elementId]) return; // already initialized
+
+        const player = new window.YT.Player(elementId, {
+          videoId,
+          events: {
+            onReady: async (event) => {
+              try {
+                const seconds = Math.round(event.target.getDuration() || 0);
+                if (seconds > 0) {
+                  const currentMinutes = lesson.duration || 0;
+                  const newMinutes = Math.max(0, Math.round(seconds / 60));
+                  if (currentMinutes !== newMinutes) {
+                    await courseService.updateLessonDuration(course._id, lesson._id, { durationSeconds: seconds });
+                    // update local state to reflect new duration
+                    setCourse(prev => ({
+                      ...prev,
+                      lessons: prev.lessons.map(l => l._id === lesson._id ? { ...l, duration: newMinutes } : l)
+                    }));
+                  }
+                }
+              } catch (e) {
+                // ignore failures; UI still works without persisted duration
+              }
+            },
+            onError: () => {
+              setUnavailableMap(prev => ({ ...prev, [lesson._id]: true }));
+            }
+          }
+        });
+        playersRef.current[elementId] = player;
+      });
+    };
+
+    initPlayers();
+
+    return () => {
+      // optional cleanup not strictly necessary for page lifetime
+    };
+  }, [course, activeTab, progress]);
 
   const handleEnroll = async () => {
     try {
@@ -146,7 +235,7 @@ const CourseDetail = () => {
                 </div>
                 <div className="meta-item">
                   <Clock size={20} />
-                  <span>{course.estimatedDuration}h total</span>
+                  <span>{formatTotalMinutes(course.lessons.reduce((sum, l) => sum + (l.duration || 0), 0))} total</span>
                 </div>
                 <div className="meta-item">
                   <Award size={20} />
@@ -279,10 +368,16 @@ const CourseDetail = () => {
                         
                         {isEnrolled && videoId && (
                           <div className="lesson-video" style={{marginTop: '16px'}}>
+                            {unavailableMap[lesson._id] && (
+                              <div className="alert alert-danger" style={{marginBottom: '8px'}}>
+                                Video unavailable. We’ll replace this link soon.
+                              </div>
+                            )}
                             <iframe
                               width="100%"
                               height="315"
-                              src={`https://www.youtube.com/embed/${videoId}`}
+                              id={`player-${lesson._id}`}
+                              src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1`}
                               title={lesson.title}
                               frameBorder="0"
                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

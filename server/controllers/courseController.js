@@ -2,6 +2,51 @@ const Course = require('../models/Course');
 const User = require('../models/User');
 const Progress = require('../models/Progress');
 
+// @desc    Audit courses for content health
+// @route   GET /api/courses/audit
+// @access  Private (Instructor/Admin)
+exports.auditCourses = async (req, res) => {
+  try {
+    const courses = await Course.find({}).select('title lessons enrolledStudents');
+
+    const sixHoursMin = 6 * 60 - 60; // allow -1h tolerance
+    const sixHoursMax = 6 * 60 + 60; // allow +1h tolerance
+
+    const youTubeIdRegex = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+
+    const report = courses.map(course => {
+      const lessons = course.lessons || [];
+      const totalMinutes = lessons.reduce((sum, l) => sum + (Number(l.duration) || 0), 0);
+      const invalidVideos = lessons
+        .filter(l => !l.videoUrl || !youTubeIdRegex.test(l.videoUrl))
+        .map(l => ({ id: l._id, title: l.title, videoUrl: l.videoUrl || null }));
+
+      const flags = [];
+      if (totalMinutes < sixHoursMin || totalMinutes > sixHoursMax) {
+        flags.push('totalDurationOutside6h±1h');
+      }
+      if (invalidVideos.length > 0) {
+        flags.push('missingOrInvalidVideos');
+      }
+
+      return {
+        courseId: course._id,
+        title: course.title,
+        lessonsCount: lessons.length,
+        studentsCount: Array.isArray(course.enrolledStudents) ? course.enrolledStudents.length : 0,
+        totalMinutes,
+        totalFormatted: `${Math.floor(totalMinutes / 60)}h ${Math.round(totalMinutes % 60)}m`,
+        invalidVideos,
+        flags
+      };
+    });
+
+    res.status(200).json({ status: 'success', data: { report } });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
 // @desc    Get all courses
 // @route   GET /api/courses
 // @access  Public
@@ -206,6 +251,79 @@ exports.enrollCourse = async (req, res) => {
       status: 'success',
       message: 'Successfully enrolled in course',
       data: { course }
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// @desc    Update a lesson's duration
+// @route   PUT /api/courses/:courseId/lessons/:lessonId/duration
+// @access  Private (Students can set once if enrolled; instructors/admins unrestricted)
+exports.updateLessonDuration = async (req, res) => {
+  try {
+    const { courseId, lessonId } = req.params;
+    const { durationSeconds, durationMinutes } = req.body;
+
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Course not found'
+      });
+    }
+
+    const isInstructorOrAdmin = (course.instructor && course.instructor.toString && course.instructor.toString() === req.user.id) || req.user.role === 'admin';
+
+    const lesson = course.lessons.id(lessonId);
+    if (!lesson) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Lesson not found'
+      });
+    }
+
+    // Authorization logic:
+    // - Instructors/Admins: may always set
+    // - Students: must be enrolled and only allowed if duration is not set yet (0 or undefined)
+    if (!isInstructorOrAdmin) {
+      const userId = req.user.id;
+      const isEnrolled = Array.isArray(course.enrolledStudents) && course.enrolledStudents.some(s => (s && s.toString) ? s.toString() === userId : s === userId);
+      const currentMinutes = Number(lesson.duration || 0);
+      if (!isEnrolled) {
+        return res.status(403).json({
+          status: 'error',
+          message: 'Only enrolled students can set lesson duration'
+        });
+      }
+      if (currentMinutes > 0) {
+        return res.status(200).json({
+          status: 'success',
+          data: { lesson },
+          message: 'Duration already set'
+        });
+      }
+    }
+
+    if (typeof durationSeconds === 'number' && !Number.isNaN(durationSeconds)) {
+      lesson.duration = Math.max(0, Math.round(durationSeconds / 60));
+    } else if (typeof durationMinutes === 'number' && !Number.isNaN(durationMinutes)) {
+      lesson.duration = Math.max(0, Math.round(durationMinutes));
+    } else {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Provide durationSeconds or durationMinutes as a number'
+      });
+    }
+
+    await course.save();
+
+    res.status(200).json({
+      status: 'success',
+      data: { lesson }
     });
   } catch (error) {
     res.status(500).json({

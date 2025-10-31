@@ -17,7 +17,7 @@ import {
   Settings
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { userService, courseService } from '../services/api';
+import { userService, courseService, systemService } from '../services/api';
 import './Admin.css';
 
 const Admin = () => {
@@ -41,6 +41,14 @@ const Admin = () => {
   const [userAnalytics, setUserAnalytics] = useState([]);
   const [courseAnalytics, setCourseAnalytics] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState({
+    siteName: '',
+    supportEmail: '',
+    maintenanceMode: false,
+    allowRegistrations: true,
+    themePrimaryColor: '#3b82f6'
+  });
 
   useEffect(() => {
     fetchData();
@@ -215,6 +223,47 @@ const Admin = () => {
     }
   };
 
+  const handleSystemSettings = async () => {
+    try {
+      const res = await systemService.getSettings();
+      setSettings(res.data.data.settings);
+      setShowSettings(true);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to load settings');
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    try {
+      const res = await courseService.getAuditReport();
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `course-audit-${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error generating report:', error);
+      alert(error.response?.data?.message || 'Failed to generate report');
+    }
+  };
+
+  const saveSettings = async () => {
+    try {
+      const res = await systemService.updateSettings(settings);
+      setSettings(res.data.data.settings);
+      setShowSettings(false);
+      alert('Settings saved');
+    } catch (e) {
+      console.error(e);
+      alert('Failed to save settings');
+    }
+  };
+
   if (loading) {
     return <LoadingSpinner message="Loading admin panel..." />;
   }
@@ -222,21 +271,61 @@ const Admin = () => {
   return (
     <div className="admin-page">
       <div className="container">
+        {showSettings && (
+          <div className="modal-overlay">
+            <div className="modal">
+              <div className="modal-header">
+                <h2>System Settings</h2>
+                <button className="btn btn-sm" onClick={() => setShowSettings(false)}>Close</button>
+              </div>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Site Name</label>
+                  <input value={settings.siteName || ''} onChange={(e) => setSettings({ ...settings, siteName: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label>Support Email</label>
+                  <input value={settings.supportEmail || ''} onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })} />
+                </div>
+                <div className="form-row">
+                  <label>
+                    <input type="checkbox" checked={!!settings.maintenanceMode} onChange={(e) => setSettings({ ...settings, maintenanceMode: e.target.checked })} />
+                    Maintenance Mode
+                  </label>
+                </div>
+                <div className="form-row">
+                  <label>
+                    <input type="checkbox" checked={!!settings.allowRegistrations} onChange={(e) => setSettings({ ...settings, allowRegistrations: e.target.checked })} />
+                    Allow New Registrations
+                  </label>
+                </div>
+                <div className="form-group">
+                  <label>Primary Theme Color</label>
+                  <input type="color" value={settings.themePrimaryColor || '#3b82f6'} onChange={(e) => setSettings({ ...settings, themePrimaryColor: e.target.value })} />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setShowSettings(false)}>Cancel</button>
+                <button className="btn btn-primary" onClick={saveSettings}>Save</button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="admin-header">
           <div className="admin-header-content">
             <div className="admin-title">
               <Shield size={40} />
               <div>
-                <h1>System Administration</h1>
+                <h1>Admin Dashboard</h1>
                 <p>Comprehensive platform oversight and management</p>
               </div>
             </div>
             <div className="admin-actions">
-              <button className="btn btn-secondary">
+              <button className="btn btn-secondary" onClick={handleSystemSettings}>
                 <Settings size={20} />
                 System Settings
               </button>
-              <button className="btn btn-primary">
+              <button className="btn btn-primary" onClick={handleGenerateReport}>
                 <BarChart3 size={20} />
                 Generate Report
               </button>

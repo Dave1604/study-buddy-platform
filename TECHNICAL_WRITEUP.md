@@ -360,6 +360,30 @@ The application implements responsive design using:
 - **Separated course views** showing enrolled vs available courses
 - **Enhanced course organization** with clear visual distinction between course types
 
+#### Video Duration Tracking (New)
+- **Lesson duration model**: Each lesson stores `duration` in minutes
+- **Backend endpoint**: `PUT /api/courses/:courseId/lessons/:lessonId/duration` (instructor/admin)
+  - Accepts `{ durationSeconds }` (preferred) or `{ durationMinutes }`
+  - Persists normalized minutes to the `Lesson` schema
+- **Frontend display**:
+  - Per-lesson duration badges (e.g., "15m")
+  - Course total time computed from lesson durations (e.g., "3h 10m total")
+- **Future enhancement options**:
+  - Use YouTube/Vimeo APIs to fetch durations at creation time
+  - Server-side extraction with ffprobe in a worker (not in Vercel functions)
+
+### 6.4 Administration Enhancements (New)
+- Admin Dashboard consolidation: admins are redirected from `/dashboard` to `/admin`, making the Admin Panel the single dashboard.
+- Navigation rules: Admins do not see the `Courses` link; instructors see only their own courses on `Courses`.
+- System Settings:
+  - Model: `Setting { siteName, supportEmail, maintenanceMode, allowRegistrations, themePrimaryColor }`
+  - Endpoints: `GET /api/system/settings`, `PUT /api/system/settings` (admin)
+  - UI: Admin → System Settings modal with persistence
+- Course Audit & Content Health:
+  - Endpoint: `GET /api/courses/audit` (admin/instructor access locked to admin in UI)
+  - Report includes total minutes (and formatted), invalid/missing video URLs, and flags for totals outside ~6h (±1h).
+  - Admin UI button: Admin → Generate Report triggers JSON download.
+
 ---
 
 ## 7. Recent Improvements & Bug Fixes
@@ -374,7 +398,7 @@ The application implements responsive design using:
 - **Fixed new user redirect** from dashboard to courses page for better onboarding
 - **Improved course page layout** with better visual hierarchy and responsiveness
 - **Enhanced enrollment process** with better error messages and user feedback
-- **Added course video duration accuracy** matching actual YouTube video lengths
+- **Added course duration display** based on stored lesson durations (minutes)
 - **Fixed courses display issue** - database now properly seeded with sample courses
 - **Added enrolled vs available course separation** for better user experience
 - **Enhanced course filtering** with clear sections for enrolled and available courses

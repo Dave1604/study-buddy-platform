@@ -24,11 +24,31 @@ const Courses = () => {
       const allCourses = response.data.data.courses;
       
       // Separate enrolled and non-enrolled courses
-      if (user && user.enrolledCourses) {
-        const enrolledIds = user.enrolledCourses.map(course => course._id || course);
-        const enrolled = allCourses.filter(course => enrolledIds.includes(course._id));
-        const notEnrolled = allCourses.filter(course => !enrolledIds.includes(course._id));
-        
+      // Use both user.enrolledCourses (ids) and course.enrolledStudents (ids) as sources
+      if (user) {
+        // Instructors: only show their own courses
+        if (user.role === 'instructor') {
+          const myCourses = allCourses.filter(c => (c.instructor && (c.instructor._id || c.instructor)) === user._id);
+          setCourses(myCourses);
+          setEnrolledCourses([]);
+          setLoading(false);
+          return;
+        }
+
+        const userId = user._id;
+        const enrolledIds = Array.isArray(user.enrolledCourses)
+          ? user.enrolledCourses.map(c => (c && c._id) ? c._id : c).filter(Boolean)
+          : [];
+
+        const isUserInCourse = (course) => {
+          const byStudents = Array.isArray(course.enrolledStudents) && course.enrolledStudents.some(s => (s && s._id) ? s._id === userId : s === userId);
+          const byIds = enrolledIds.includes(course._id);
+          return byStudents || byIds;
+        };
+
+        const enrolled = allCourses.filter(isUserInCourse);
+        const notEnrolled = allCourses.filter(c => !isUserInCourse(c));
+
         setEnrolledCourses(enrolled);
         setCourses(notEnrolled);
       } else {
@@ -105,8 +125,8 @@ const Courses = () => {
           <LoadingSpinner message="Loading courses..." />
         ) : (
           <>
-            {/* Enrolled Courses Section */}
-            {enrolledCourses.length > 0 && (
+            {/* Enrolled Courses Section (students only) */}
+            {user?.role !== 'instructor' && enrolledCourses.length > 0 && (
               <div className="courses-section">
                 <h2 className="section-title">My Enrolled Courses</h2>
                 <div className="courses-count">
@@ -120,12 +140,12 @@ const Courses = () => {
               </div>
             )}
 
-            {/* Available Courses Section */}
+            {/* Available Courses Section (shows instructor's own list or available for students) */}
             {courses.length > 0 ? (
               <div className="courses-section">
-                <h2 className="section-title">Available Courses</h2>
+                <h2 className="section-title">{user?.role === 'instructor' ? 'My Courses' : 'Available Courses'}</h2>
                 <div className="courses-count">
-                  {courses.length} available {courses.length === 1 ? 'course' : 'courses'}
+                  {courses.length} {courses.length === 1 ? 'course' : 'courses'}
                 </div>
                 <div className="courses-grid">
                   {courses.map((course) => (
@@ -133,13 +153,13 @@ const Courses = () => {
                   ))}
                 </div>
               </div>
-            ) : enrolledCourses.length === 0 && (
+            ) : (!enrolledCourses.length && (
               <div className="no-courses">
                 <BookOpen size={64} />
                 <h3>No courses found</h3>
                 <p>No courses match your current search criteria. Try adjusting your filters.</p>
               </div>
-            )}
+            ))}
           </>
         )}
       </div>

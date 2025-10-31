@@ -22,7 +22,7 @@ const Navbar = () => {
   return (
     <nav className="navbar">
       <div className="container navbar-container">
-        <Link to="/" className="navbar-brand" onClick={() => setIsMobileMenuOpen(false)}>
+        <Link to={isAuthenticated ? "/dashboard" : "/"} className="navbar-brand" onClick={() => setIsMobileMenuOpen(false)}>
           <GraduationCap size={32} />
           <span>Study Buddy</span>
         </Link>
@@ -34,10 +34,12 @@ const Navbar = () => {
         <div className={`navbar-menu ${isMobileMenuOpen ? 'active' : ''}`}>
           {isAuthenticated ? (
             <>
-              <Link to="/courses" className="nav-link" onClick={() => setIsMobileMenuOpen(false)}>
-                <BookOpen size={20} />
-                <span>Courses</span>
-              </Link>
+              {user?.role !== 'admin' && (
+                <Link to="/courses" className="nav-link" onClick={() => setIsMobileMenuOpen(false)}>
+                  <BookOpen size={20} />
+                  <span>Courses</span>
+                </Link>
+              )}
               <Link to="/dashboard" className="nav-link" onClick={() => setIsMobileMenuOpen(false)}>
                 <LayoutDashboard size={20} />
                 <span>Dashboard</span>
@@ -50,7 +52,7 @@ const Navbar = () => {
               )}
               <Link to="/profile" className="nav-link" onClick={() => setIsMobileMenuOpen(false)}>
                 <User size={20} />
-                <span>{user?.firstName}</span>
+                <span>Profile</span>
               </Link>
               <button onClick={handleLogout} className="nav-link logout-btn">
                 <LogOut size={20} />

@@ -24,6 +24,10 @@ import { useAuth } from './context/AuthContext';
 const DashboardRouter = () => {
   const { user } = useAuth();
   
+  if (user?.role === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+
   if (user?.role === 'instructor') {
     return <InstructorDashboard />;
   }

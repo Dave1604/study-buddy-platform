@@ -1,3 +1,27 @@
+# Study Buddy
+
+## Lesson Duration Tracking
+
+This application now supports recording lesson video duration and displaying totals.
+
+### Backend
+
+- Endpoint: `PUT /api/courses/:courseId/lessons/:lessonId/duration`
+  - Auth: instructor or admin
+  - Body: `{ durationSeconds: number }` (preferred) or `{ durationMinutes: number }`
+  - Stores lesson `duration` in minutes on the `Course` model.
+
+### Frontend
+
+- `CourseDetail` shows per-lesson duration and a computed course total.
+- Service method: `courseService.updateLessonDuration(courseId, lessonId, { durationSeconds })`.
+
+### Suggested Workflow
+
+1. Instructor creates/edits a lesson with a video URL.
+2. After metadata is known, call the duration endpoint to persist it.
+3. Learners see lesson badges (e.g., “12m”) and course total time (e.g., “3h 5m”).
+
 # Study Buddy - Interactive E-Learning Platform
 
 ## 📚 Project Overview
@@ -246,3 +270,20 @@ For questions about this dissertation project, please contact [Your Email]
 ---
 
 **Note**: This is an academic project developed for dissertation purposes. The implementation reflects research findings from e-learning literature and demonstrates practical application of theoretical concepts.
+
+## Recent Changes & Admin Guide
+
+- Admin Dashboard is the single hub for admins; admins are redirected from `/dashboard` to `/admin`.
+- Navbar: Admin no longer sees the `Courses` link. Instructors see their own courses only on the `Courses` page.
+- Lesson durations: YouTube duration capture saves minutes per lesson and updates course totals automatically.
+- Video unavailable handling: Lessons show an inline alert if a YouTube video is unavailable.
+- Audit report download: As an admin, go to Admin → "Generate Report" to download a JSON audit of courses with:
+  - total minutes per course and formatted time
+  - flags for totals outside ~6h (±1h)
+  - missing/invalid video URLs
+- System Settings (Admin → System Settings): manage site name, support email, maintenance mode, registrations, and theme color. Changes persist via secure backend endpoints.
+
+### Endpoints added
+- `GET /api/courses/audit` (admin, instructor view wired via button for admins)
+- `GET /api/system/settings` (admin)
+- `PUT /api/system/settings` (admin)

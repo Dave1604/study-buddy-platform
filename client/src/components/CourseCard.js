@@ -4,6 +4,15 @@ import { Clock, Users, BookOpen, TrendingUp } from 'lucide-react';
 import './CourseCard.css';
 
 const CourseCard = ({ course }) => {
+  const totalMinutes = (course.totalDuration && Number.isFinite(course.totalDuration))
+    ? Math.max(0, Math.round(course.totalDuration))
+    : Math.max(0, Math.round((course.lessons || []).reduce((sum, l) => sum + (Number(l.duration) || 0), 0)));
+
+  const formatTotal = (minutes) => {
+    const hrs = Math.floor((minutes || 0) / 60);
+    const mins = Math.max(0, Math.round((minutes || 0) % 60));
+    return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+  };
   const getCategoryColor = (category) => {
     const colors = {
       programming: '#3b82f6',
@@ -72,18 +81,16 @@ const CourseCard = ({ course }) => {
           <div className="course-meta">
             <div className="meta-item">
               <BookOpen size={16} />
-              <span>{course.lessons?.length || 0} lessons</span>
+              <span>{(course.lessons && course.lessons.length) || 0} lessons</span>
             </div>
             <div className="meta-item">
               <Users size={16} />
-              <span>{course.totalEnrollments || 0} students</span>
+              <span>{(Array.isArray(course.enrolledStudents) ? course.enrolledStudents.length : (course.totalEnrollments || 0))} students</span>
             </div>
-            {course.estimatedDuration > 0 && (
-              <div className="meta-item">
-                <Clock size={16} />
-                <span>{course.estimatedDuration}h</span>
-              </div>
-            )}
+            <div className="meta-item">
+              <Clock size={16} />
+              <span>{formatTotal(totalMinutes)}</span>
+            </div>
           </div>
           
           {course.averageRating > 0 && (

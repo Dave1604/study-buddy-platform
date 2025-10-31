@@ -24,14 +24,13 @@ api.interceptors.request.use(
   }
 );
 
-// Handle 401 responses globally
+// Handle 401 responses globally (no hard redirect to avoid refresh flicker)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Clear token and redirect to login
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      // Do not redirect here; let calling code (AuthContext / routes) handle UI flow
     }
     return Promise.reject(error);
   }
@@ -44,7 +43,10 @@ export const courseService = {
   createCourse: (data) => api.post('/courses', data),
   updateCourse: (id, data) => api.put(`/courses/${id}`, data),
   deleteCourse: (id) => api.delete(`/courses/${id}`),
-  enrollCourse: (id) => api.post(`/courses/${id}/enroll`)
+  enrollCourse: (id) => api.post(`/courses/${id}/enroll`),
+  updateLessonDuration: (courseId, lessonId, payload) =>
+    api.put(`/courses/${courseId}/lessons/${lessonId}/duration`, payload),
+  getAuditReport: () => api.get('/courses/audit')
 };
 
 // Quiz Services
@@ -72,6 +74,12 @@ export const userService = {
   getUser: (id) => api.get(`/users/${id}`),
   updateUser: (id, data) => api.put(`/users/${id}`, data),
   deleteUser: (id) => api.delete(`/users/${id}`)
+};
+
+// System Services
+export const systemService = {
+  getSettings: () => api.get('/system/settings'),
+  updateSettings: (data) => api.put('/system/settings', data)
 };
 
 export default api;
