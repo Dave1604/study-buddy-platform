@@ -28,21 +28,29 @@ const Courses = () => {
       if (user) {
         // Instructors: only show their own courses
         if (user.role === 'instructor') {
-          const myCourses = allCourses.filter(c => (c.instructor && (c.instructor._id || c.instructor)) === user._id);
+          const myCourses = allCourses.filter(c => ((c.instructor && (c.instructor._id || c.instructor)) + '') === ((user._id || user.id) + ''));
           setCourses(myCourses);
           setEnrolledCourses([]);
           setLoading(false);
           return;
         }
 
-        const userId = user._id;
+        const userId = ((user._id || user.id) || '').toString();
         const enrolledIds = Array.isArray(user.enrolledCourses)
-          ? user.enrolledCourses.map(c => (c && c._id) ? c._id : c).filter(Boolean)
+          ? user.enrolledCourses
+              .map(c => (c && (c._id || c.id)) ? (c._id || c.id).toString() : (c ? String(c) : null))
+              .filter(Boolean)
           : [];
+        const enrolledIdSet = new Set(enrolledIds);
 
         const isUserInCourse = (course) => {
-          const byStudents = Array.isArray(course.enrolledStudents) && course.enrolledStudents.some(s => (s && s._id) ? s._id === userId : s === userId);
-          const byIds = enrolledIds.includes(course._id);
+          const courseIdStr = ((course._id || course.id) || '').toString();
+          const byIds = enrolledIdSet.has(courseIdStr);
+
+          const byStudents = Array.isArray(course.enrolledStudents) && course.enrolledStudents.some(s => {
+            const sid = (s && (s._id || s.id)) ? (s._id || s.id).toString() : (s ? String(s) : '');
+            return sid === userId;
+          });
           return byStudents || byIds;
         };
 
