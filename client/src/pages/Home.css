@@ -64,23 +64,57 @@
   animation: float 3s ease-in-out infinite;
 }
 
-.card-1 {
-  top: 0;
-  left: 0;
-  animation-delay: 0s;
+.hero-section::after {
+  content: '';
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  right: -200px;
+  top: -150px;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.18), transparent 60%);
+  filter: blur(10px);
 }
 
-.card-2 {
-  top: 50%;
-  right: 0;
-  animation-delay: 1s;
+.hero-gradient {
+  background: linear-gradient(90deg, #A7F3D0 0%, #FDE68A 50%, #FCA5A5 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
-.card-3 {
-  bottom: 0;
-  left: 50%;
-  animation-delay: 2s;
+.trust-logos {
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: rgba(255,255,255,0.9);
 }
+
+.trust-logos > span {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.logo-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.logo-pill {
+  font-size: 13px;
+  background: rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.24);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 999px;
+  backdrop-filter: blur(2px);
+}
+
+/* subtle floating animation variations */
+.card-1 { top: 0; left: 0; animation-delay: 0s; }
+.card-2 { top: 50%; right: 0; animation-delay: 0.6s; }
+.card-3 { bottom: 0; left: 50%; animation-delay: 1.2s; }
 
 @keyframes float {
   0%, 100% {

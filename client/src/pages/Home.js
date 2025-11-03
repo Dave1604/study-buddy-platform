@@ -37,11 +37,11 @@ const Home = () => {
         <div className="container">
           <div className="hero-content">
             <h1 className="hero-title">
-              Your Interactive Learning Companion
+              Your <span className="hero-gradient">Interactive</span> Learning Companion
             </h1>
             <p className="hero-subtitle">
-              Master new skills with Study Buddy - an intelligent e-learning platform 
-              featuring interactive quizzes, real-time progress tracking, and personalized dashboards.
+              Learn faster with engaging courses, smart quizzes, and real-time analytics.
+              Build confidence, track progress, and achieve more with Study Buddy.
             </p>
             <div className="hero-actions">
               {isAuthenticated ? (
@@ -65,6 +65,15 @@ const Home = () => {
                   </Link>
                 </>
               )}
+            </div>
+            <div className="trust-logos">
+              <span>Trusted by learners from</span>
+              <div className="logo-row">
+                <div className="logo-pill">Universities</div>
+                <div className="logo-pill">Bootcamps</div>
+                <div className="logo-pill">Self‑Learners</div>
+                <div className="logo-pill">Professionals</div>
+              </div>
             </div>
           </div>
           <div className="hero-image">
