@@ -1,43 +1,44 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const supabase = require('../config/supabase');
 
-// Protect routes - verify JWT token
-exports.protect = async (req, res, next) => {
-  let token;
-
-  // Check for token in headers
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
-  }
-
-  // Make sure token exists
-  if (!token) {
+// Verify JWT and attach user to request
+const protect = async (req, res, next) => {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Bearer ')) {
     return res.status(401).json({
       status: 'error',
       message: 'Not authorized to access this route'
     });
   }
 
+  const token = auth.split(' ')[1];
+
   try {
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Get user from token
-    req.user = await User.findById(decoded.id).select('-password');
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, name, email, role, avatar_url, bio, is_active')
+      .eq('id', decoded.id)
+      .single();
 
-    if (!req.user) {
-      return res.status(404).json({
+    if (error || !user) {
+      return res.status(401).json({
         status: 'error',
         message: 'User not found'
       });
     }
 
-    // Update last active
-    req.user.lastActive = Date.now();
-    await req.user.save();
+    if (!user.is_active) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Account has been deactivated'
+      });
+    }
 
+    req.user = user;
     next();
-  } catch (error) {
+  } catch (err) {
     return res.status(401).json({
       status: 'error',
       message: 'Not authorized to access this route'
@@ -45,15 +46,15 @@ exports.protect = async (req, res, next) => {
   }
 };
 
-// Grant access to specific roles
-exports.authorize = (...roles) => {
-  return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({
-        status: 'error',
-        message: `User role '${req.user.role}' is not authorized to access this route`
-      });
-    }
-    next();
-  };
+// Role-based access control
+const authorize = (...roles) => (req, res, next) => {
+  if (!roles.includes(req.user.role)) {
+    return res.status(403).json({
+      status: 'error',
+      message: `User role '${req.user.role}' is not authorized to access this route`
+    });
+  }
+  next();
 };
+
+module.exports = { protect, authorize };
