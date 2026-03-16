@@ -368,14 +368,14 @@ const CourseDetail = () => {
                         <p>{lesson.content.substring(0, 150)}...</p>
                         
                         {isEnrolled && videoId && (
-                          <div className="lesson-video" style={{marginTop: ‘16px’}}>
+                          <div className="lesson-video" style={{marginTop: '16px'}}>
                             {unavailableMap[lesson._id] && (
-                              <div className="alert-error" style={{marginBottom: ‘8px’}}>
-                                Video unavailable. We’ll replace this link soon.
+                              <div className="alert-error" style={{marginBottom: '8px'}}>
+                                Video unavailable. We'll replace this link soon.
                               </div>
                             )}
                             {/* 16:9 aspect ratio container */}
-                            <div style={{position: ‘relative’, paddingBottom: ‘56.25%’, height: 0, overflow: ‘hidden’, borderRadius: ‘12px’}}>
+                            <div style={{position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '12px'}}>
                               <iframe
                                 id={`player-${lesson._id}`}
                                 src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1`}
@@ -383,7 +383,7 @@ const CourseDetail = () => {
                                 frameBorder="0"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen
-                                style={{position: ‘absolute’, top: 0, left: 0, width: ‘100%’, height: ‘100%’, borderRadius: ‘12px’}}
+                                style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: '12px'}}
                               ></iframe>
                             </div>
                           </div>
