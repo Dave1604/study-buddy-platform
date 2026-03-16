@@ -9,34 +9,39 @@ router.get('/audit', protect, authorize('instructor', 'admin'), async (req, res)
   try {
     const { data: courses, error } = await supabase
       .from('courses')
-      .select('id, title, total_enrollments, lessons(id, title, video_url, duration)');
-
+      .select('id, title');
     if (error) throw error;
+
+    const courseIds = courses.map(c => c.id);
+    const { data: lessons } = courseIds.length
+      ? await supabase.from('lessons').select('id, course_id, title, video_url, duration_minutes').in('course_id', courseIds)
+      : { data: [] };
 
     const youTubeIdRegex = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const sixHoursMin = 6 * 60 - 60;
     const sixHoursMax = 6 * 60 + 60;
 
+    const lessonsByCourse = {};
+    (lessons || []).forEach(l => {
+      if (!lessonsByCourse[l.course_id]) lessonsByCourse[l.course_id] = [];
+      lessonsByCourse[l.course_id].push(l);
+    });
+
     const report = courses.map(course => {
-      const lessons = course.lessons || [];
-      const totalMinutes = lessons.reduce((sum, l) => sum + (Number(l.duration) || 0), 0);
-      const invalidVideos = lessons
+      const courseLessons = lessonsByCourse[course.id] || [];
+      const totalMinutes = courseLessons.reduce((sum, l) => sum + (Number(l.duration_minutes) || 0), 0);
+      const invalidVideos = courseLessons
         .filter(l => !l.video_url || !youTubeIdRegex.test(l.video_url))
         .map(l => ({ id: l.id, title: l.title, videoUrl: l.video_url || null }));
 
       const flags = [];
-      if (totalMinutes < sixHoursMin || totalMinutes > sixHoursMax) {
-        flags.push('totalDurationOutside6h±1h');
-      }
-      if (invalidVideos.length > 0) {
-        flags.push('missingOrInvalidVideos');
-      }
+      if (totalMinutes < sixHoursMin || totalMinutes > sixHoursMax) flags.push('totalDurationOutside6h±1h');
+      if (invalidVideos.length > 0) flags.push('missingOrInvalidVideos');
 
       return {
         courseId: course.id,
         title: course.title,
-        lessonsCount: lessons.length,
-        studentsCount: course.total_enrollments || 0,
+        lessonsCount: courseLessons.length,
         totalMinutes,
         totalFormatted: `${Math.floor(totalMinutes / 60)}h ${Math.round(totalMinutes % 60)}m`,
         invalidVideos,
@@ -55,30 +60,51 @@ router.get('/audit', protect, authorize('instructor', 'admin'), async (req, res)
 // ──────────────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
-    const { category, level, search } = req.query;
+    const { category, search } = req.query;
 
     let query = supabase
       .from('courses')
       .select(`
-        id, title, description, short_description, category, level,
-        thumbnail, total_enrollments, average_rating, estimated_duration,
-        is_published, created_at,
+        id, title, description, category, instructor_id,
+        thumbnail_url, is_published, created_at,
         instructor:users!courses_instructor_id_fkey(id, name, avatar_url)
       `)
       .eq('is_published', true)
       .order('created_at', { ascending: false });
 
     if (category) query = query.eq('category', category);
-    if (level) query = query.eq('level', level);
     if (search) query = query.ilike('title', `%${search}%`);
 
     const { data: courses, error } = await query;
     if (error) throw error;
 
+    // Attach lesson and enrollment counts
+    const courseIds = (courses || []).map(c => c.id);
+    const [{ data: lessons }, { data: enrollments }] = await Promise.all([
+      courseIds.length
+        ? supabase.from('lessons').select('course_id').in('course_id', courseIds)
+        : Promise.resolve({ data: [] }),
+      courseIds.length
+        ? supabase.from('enrollments').select('course_id').in('course_id', courseIds)
+        : Promise.resolve({ data: [] })
+    ]);
+
+    const lessonCount = {};
+    (lessons || []).forEach(l => { lessonCount[l.course_id] = (lessonCount[l.course_id] || 0) + 1; });
+    const enrollCount = {};
+    (enrollments || []).forEach(e => { enrollCount[e.course_id] = (enrollCount[e.course_id] || 0) + 1; });
+
+    const result = (courses || []).map(c => ({
+      ...c,
+      thumbnail: c.thumbnail_url,
+      lesson_count: lessonCount[c.id] || 0,
+      enrolled_count: enrollCount[c.id] || 0
+    }));
+
     res.status(200).json({
       status: 'success',
-      results: courses.length,
-      data: { courses }
+      results: result.length,
+      data: { courses: result }
     });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
@@ -92,27 +118,49 @@ router.get('/enrolled', protect, async (req, res) => {
   try {
     const { data: enrollments, error } = await supabase
       .from('enrollments')
-      .select(`
-        enrolled_at,
-        course:courses(
-          id, title, description, category, level, thumbnail,
-          total_enrollments, estimated_duration,
-          instructor:users!courses_instructor_id_fkey(id, name, avatar_url)
-        )
-      `)
-      .eq('user_id', req.user.id);
+      .select('enrolled_at, course_id')
+      .eq('student_id', req.user.id);
 
     if (error) throw error;
 
-    const courses = enrollments.map(e => ({
-      ...e.course,
-      enrolled_at: e.enrolled_at
+    const courseIds = (enrollments || []).map(e => e.course_id);
+    if (!courseIds.length) {
+      return res.status(200).json({ status: 'success', results: 0, data: { courses: [] } });
+    }
+
+    const { data: courses, error: cErr } = await supabase
+      .from('courses')
+      .select(`
+        id, title, description, category, thumbnail_url, is_published, created_at,
+        instructor:users!courses_instructor_id_fkey(id, name, avatar_url)
+      `)
+      .in('id', courseIds);
+    if (cErr) throw cErr;
+
+    // Get progress
+    const { data: progressRows } = await supabase
+      .from('progress')
+      .select('course_id, completion_percentage')
+      .eq('student_id', req.user.id)
+      .in('course_id', courseIds);
+
+    const progressMap = {};
+    (progressRows || []).forEach(p => { progressMap[p.course_id] = p.completion_percentage; });
+
+    const enrolledAtMap = {};
+    (enrollments || []).forEach(e => { enrolledAtMap[e.course_id] = e.enrolled_at; });
+
+    const result = (courses || []).map(c => ({
+      ...c,
+      thumbnail: c.thumbnail_url,
+      enrolled_at: enrolledAtMap[c.id],
+      completion_percentage: progressMap[c.id] || 0
     }));
 
     res.status(200).json({
       status: 'success',
-      results: courses.length,
-      data: { courses }
+      results: result.length,
+      data: { courses: result }
     });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
@@ -127,13 +175,9 @@ router.get('/:id', async (req, res) => {
     const { data: course, error } = await supabase
       .from('courses')
       .select(`
-        id, title, description, short_description, category, level,
-        thumbnail, learning_objectives, prerequisites, tags,
-        total_enrollments, average_rating, total_ratings,
-        estimated_duration, is_published, created_at, updated_at,
-        instructor:users!courses_instructor_id_fkey(id, name, avatar_url, bio),
-        lessons(id, title, content, content_type, video_url, duration, "order", resources),
-        quizzes(id, title, description, duration, passing_score, total_points, difficulty, is_active, attempts_allowed)
+        id, title, description, category, instructor_id,
+        thumbnail_url, is_published, created_at, updated_at,
+        instructor:users!courses_instructor_id_fkey(id, name, avatar_url)
       `)
       .eq('id', req.params.id)
       .single();
@@ -142,12 +186,20 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ status: 'error', message: 'Course not found' });
     }
 
-    // Sort lessons by order
-    if (course.lessons) {
-      course.lessons.sort((a, b) => a.order - b.order);
-    }
+    // Get lessons
+    const { data: lessons } = await supabase
+      .from('lessons')
+      .select('id, course_id, title, description, video_url, order_num, duration_minutes')
+      .eq('course_id', course.id)
+      .order('order_num', { ascending: true });
 
-    // Check enrollment status if user is authenticated
+    // Get quizzes
+    const { data: quizzes } = await supabase
+      .from('quizzes')
+      .select('id, title, description, time_limit_minutes, passing_score, created_at')
+      .eq('course_id', course.id);
+
+    // Enrollment + progress if authenticated
     let isEnrolled = false;
     let userProgress = null;
     const authHeader = req.headers.authorization;
@@ -159,7 +211,7 @@ router.get('/:id', async (req, res) => {
         const { data: enrollment } = await supabase
           .from('enrollments')
           .select('enrolled_at')
-          .eq('user_id', decoded.id)
+          .eq('student_id', decoded.id)
           .eq('course_id', req.params.id)
           .maybeSingle();
 
@@ -168,8 +220,8 @@ router.get('/:id', async (req, res) => {
         if (isEnrolled) {
           const { data: prog } = await supabase
             .from('progress')
-            .select('completion_percentage, is_completed, current_lesson_id, lessons_progress')
-            .eq('user_id', decoded.id)
+            .select('completion_percentage, completed_lessons, total_time_spent_minutes, last_accessed')
+            .eq('student_id', decoded.id)
             .eq('course_id', req.params.id)
             .maybeSingle();
           userProgress = prog;
@@ -181,7 +233,20 @@ router.get('/:id', async (req, res) => {
 
     res.status(200).json({
       status: 'success',
-      data: { course: { ...course, isEnrolled, userProgress } }
+      data: {
+        course: {
+          ...course,
+          thumbnail: course.thumbnail_url,
+          lessons: lessons || [],
+          quizzes: quizzes || [],
+          isEnrolled,
+          userProgress,
+          progress: {
+            completion_percentage: userProgress?.completion_percentage || 0,
+            completed_lessons: userProgress?.completed_lessons || []
+          }
+        }
+      }
     });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
@@ -193,40 +258,28 @@ router.get('/:id', async (req, res) => {
 // ──────────────────────────────────────────────
 router.post('/', protect, authorize('instructor', 'admin'), async (req, res) => {
   try {
-    const {
-      title, description, short_description, shortDescription,
-      category, level, thumbnail,
-      learning_objectives, learningObjectives,
-      prerequisites, tags, estimated_duration, estimatedDuration,
-      is_published, isPublished
-    } = req.body;
+    const { title, description, category, thumbnail_url, thumbnail, is_published, isPublished } = req.body;
+    if (!title) return res.status(400).json({ status: 'error', message: 'Title is required.' });
 
     const { data: course, error } = await supabase
       .from('courses')
       .insert({
         title,
-        description,
-        short_description: short_description || shortDescription || '',
+        description: description || '',
         instructor_id: req.user.id,
         category: category || 'other',
-        level: level || 'beginner',
-        thumbnail: thumbnail || '',
-        learning_objectives: learning_objectives || learningObjectives || [],
-        prerequisites: prerequisites || [],
-        tags: tags || [],
-        estimated_duration: estimated_duration || estimatedDuration || 0,
+        thumbnail_url: thumbnail_url || thumbnail || '',
         is_published: is_published !== undefined ? is_published : (isPublished || false)
       })
       .select(`
-        id, title, description, short_description, category, level,
-        thumbnail, total_enrollments, estimated_duration, is_published, created_at,
+        id, title, description, category, instructor_id, thumbnail_url, is_published, created_at,
         instructor:users!courses_instructor_id_fkey(id, name, avatar_url)
       `)
       .single();
 
     if (error) throw error;
 
-    res.status(201).json({ status: 'success', data: { course } });
+    res.status(201).json({ status: 'success', data: { course: { ...course, thumbnail: course.thumbnail_url } } });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
   }
@@ -237,7 +290,6 @@ router.post('/', protect, authorize('instructor', 'admin'), async (req, res) => 
 // ──────────────────────────────────────────────
 router.put('/:id', protect, authorize('instructor', 'admin'), async (req, res) => {
   try {
-    // Fetch to verify ownership
     const { data: existing, error: fetchErr } = await supabase
       .from('courses')
       .select('id, instructor_id')
@@ -252,19 +304,8 @@ router.put('/:id', protect, authorize('instructor', 'admin'), async (req, res) =
       return res.status(403).json({ status: 'error', message: 'Not authorized to update this course' });
     }
 
-    const allowed = [
-      'title', 'description', 'short_description', 'category', 'level',
-      'thumbnail', 'learning_objectives', 'prerequisites', 'tags',
-      'estimated_duration', 'is_published'
-    ];
-
-    // Also support camelCase keys from the client
-    const fieldMap = {
-      shortDescription: 'short_description',
-      learningObjectives: 'learning_objectives',
-      estimatedDuration: 'estimated_duration',
-      isPublished: 'is_published'
-    };
+    const allowed = ['title', 'description', 'category', 'thumbnail_url', 'is_published'];
+    const fieldMap = { thumbnail: 'thumbnail_url', isPublished: 'is_published' };
 
     const updates = { updated_at: new Date().toISOString() };
     Object.entries(req.body).forEach(([key, val]) => {
@@ -277,15 +318,14 @@ router.put('/:id', protect, authorize('instructor', 'admin'), async (req, res) =
       .update(updates)
       .eq('id', req.params.id)
       .select(`
-        id, title, description, short_description, category, level,
-        thumbnail, total_enrollments, estimated_duration, is_published,
+        id, title, description, category, instructor_id, thumbnail_url, is_published,
         instructor:users!courses_instructor_id_fkey(id, name, avatar_url)
       `)
       .single();
 
     if (error) throw error;
 
-    res.status(200).json({ status: 'success', data: { course } });
+    res.status(200).json({ status: 'success', data: { course: { ...course, thumbnail: course.thumbnail_url } } });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
   }
@@ -327,10 +367,9 @@ router.post('/:id/enroll', protect, async (req, res) => {
     const courseId = req.params.id;
     const userId = req.user.id;
 
-    // Check course exists
     const { data: course, error: courseErr } = await supabase
       .from('courses')
-      .select('id, title, total_enrollments')
+      .select('id, title')
       .eq('id', courseId)
       .single();
 
@@ -338,11 +377,10 @@ router.post('/:id/enroll', protect, async (req, res) => {
       return res.status(404).json({ status: 'error', message: 'Course not found' });
     }
 
-    // Check if already enrolled
     const { data: existing } = await supabase
       .from('enrollments')
       .select('id')
-      .eq('user_id', userId)
+      .eq('student_id', userId)
       .eq('course_id', courseId)
       .maybeSingle();
 
@@ -350,23 +388,19 @@ router.post('/:id/enroll', protect, async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Already enrolled in this course' });
     }
 
-    // Create enrollment
     const { error: enrollErr } = await supabase
       .from('enrollments')
-      .insert({ user_id: userId, course_id: courseId });
-
+      .insert({ student_id: userId, course_id: courseId });
     if (enrollErr) throw enrollErr;
 
     // Create progress record
-    await supabase
-      .from('progress')
-      .insert({ user_id: userId, course_id: courseId });
-
-    // Increment enrollment count
-    await supabase
-      .from('courses')
-      .update({ total_enrollments: (course.total_enrollments || 0) + 1 })
-      .eq('id', courseId);
+    await supabase.from('progress').insert({
+      student_id: userId,
+      course_id: courseId,
+      completed_lessons: [],
+      completion_percentage: 0,
+      total_time_spent_minutes: 0
+    });
 
     res.status(200).json({
       status: 'success',
@@ -385,7 +419,6 @@ router.post('/:id/lessons', protect, authorize('instructor', 'admin'), async (re
   try {
     const courseId = req.params.id;
 
-    // Verify ownership
     const { data: course, error: courseErr } = await supabase
       .from('courses')
       .select('id, instructor_id')
@@ -400,31 +433,30 @@ router.post('/:id/lessons', protect, authorize('instructor', 'admin'), async (re
       return res.status(403).json({ status: 'error', message: 'Not authorized to add lessons to this course' });
     }
 
-    const { title, content, content_type, contentType, video_url, videoUrl, duration, order, resources } = req.body;
+    const { title, description, content, video_url, videoUrl, duration_minutes, duration, order_num, order } = req.body;
+    if (!title) return res.status(400).json({ status: 'error', message: 'Title required.' });
 
-    // Get max existing order
+    // Get next order number
     const { data: existingLessons } = await supabase
       .from('lessons')
-      .select('"order"')
+      .select('order_num')
       .eq('course_id', courseId)
-      .order('"order"', { ascending: false })
+      .order('order_num', { ascending: false })
       .limit(1);
 
-    const nextOrder = order !== undefined ? order : ((existingLessons?.[0]?.order || 0) + 1);
+    const nextOrder = order_num !== undefined ? order_num : (order !== undefined ? order : ((existingLessons?.[0]?.order_num || 0) + 1));
 
     const { data: lesson, error } = await supabase
       .from('lessons')
       .insert({
         course_id: courseId,
         title,
-        content: content || '',
-        content_type: content_type || contentType || 'text',
+        description: description || content || '',
         video_url: video_url || videoUrl || '',
-        duration: duration || 0,
-        order: nextOrder,
-        resources: resources || []
+        duration_minutes: duration_minutes || duration || 0,
+        order_num: nextOrder
       })
-      .select()
+      .select('*')
       .single();
 
     if (error) throw error;
@@ -443,11 +475,10 @@ router.post('/:id/lessons/:lessonId/complete', protect, async (req, res) => {
     const { id: courseId, lessonId } = req.params;
     const userId = req.user.id;
 
-    // Verify enrolled
     const { data: enrollment } = await supabase
       .from('enrollments')
       .select('id')
-      .eq('user_id', userId)
+      .eq('student_id', userId)
       .eq('course_id', courseId)
       .maybeSingle();
 
@@ -455,36 +486,25 @@ router.post('/:id/lessons/:lessonId/complete', protect, async (req, res) => {
       return res.status(403).json({ status: 'error', message: 'Not enrolled in this course' });
     }
 
-    // Get or create progress
     let { data: prog } = await supabase
       .from('progress')
-      .select('id, lessons_progress, total_time_spent, completion_percentage')
-      .eq('user_id', userId)
+      .select('*')
+      .eq('student_id', userId)
       .eq('course_id', courseId)
       .maybeSingle();
 
     if (!prog) {
       const { data: newProg } = await supabase
         .from('progress')
-        .insert({ user_id: userId, course_id: courseId })
+        .insert({ student_id: userId, course_id: courseId, completed_lessons: [], completion_percentage: 0, total_time_spent_minutes: 0 })
         .select()
         .single();
       prog = newProg;
     }
 
-    const lessonsProgress = prog.lessons_progress || [];
-    const existing = lessonsProgress.find(lp => lp.lesson_id === lessonId);
-
-    if (!existing) {
-      lessonsProgress.push({
-        lesson_id: lessonId,
-        completed: true,
-        completed_at: new Date().toISOString(),
-        time_spent: 0
-      });
-    } else {
-      existing.completed = true;
-      existing.completed_at = existing.completed_at || new Date().toISOString();
+    const completedLessons = prog.completed_lessons || [];
+    if (!completedLessons.includes(lessonId)) {
+      completedLessons.push(lessonId);
     }
 
     // Recalculate completion %
@@ -493,23 +513,19 @@ router.post('/:id/lessons/:lessonId/complete', protect, async (req, res) => {
       .select('id', { count: 'exact', head: true })
       .eq('course_id', courseId);
 
-    const completedCount = lessonsProgress.filter(lp => lp.completed).length;
     const completionPercentage = totalLessons > 0
-      ? Math.round((completedCount / totalLessons) * 100)
+      ? Math.round((completedLessons.length / totalLessons) * 100)
       : 0;
-    const isCompleted = completionPercentage === 100;
 
     const { data: updated, error } = await supabase
       .from('progress')
       .update({
-        lessons_progress: lessonsProgress,
+        completed_lessons: completedLessons,
         completion_percentage: completionPercentage,
-        is_completed: isCompleted,
-        completed_at: isCompleted ? new Date().toISOString() : null,
-        current_lesson_id: lessonId,
-        last_accessed_at: new Date().toISOString()
+        last_accessed: new Date().toISOString()
       })
-      .eq('id', prog.id)
+      .eq('student_id', userId)
+      .eq('course_id', courseId)
       .select()
       .single();
 
@@ -529,7 +545,6 @@ router.put('/:courseId/lessons/:lessonId/duration', protect, async (req, res) =>
     const { courseId, lessonId } = req.params;
     const { durationSeconds, durationMinutes } = req.body;
 
-    // Check course and ownership/enrollment
     const { data: course, error: courseErr } = await supabase
       .from('courses')
       .select('id, instructor_id')
@@ -540,44 +555,26 @@ router.put('/:courseId/lessons/:lessonId/duration', protect, async (req, res) =>
       return res.status(404).json({ status: 'error', message: 'Course not found' });
     }
 
-    const isInstructorOrAdmin =
-      course.instructor_id === req.user.id || req.user.role === 'admin';
+    const isInstructorOrAdmin = course.instructor_id === req.user.id || req.user.role === 'admin';
 
     if (!isInstructorOrAdmin) {
-      // Students must be enrolled
       const { data: enrollment } = await supabase
         .from('enrollments')
         .select('id')
-        .eq('user_id', req.user.id)
+        .eq('student_id', req.user.id)
         .eq('course_id', courseId)
         .maybeSingle();
 
       if (!enrollment) {
         return res.status(403).json({ status: 'error', message: 'Only enrolled students can set lesson duration' });
       }
-
-      // Students can only set if not already set
-      const { data: currentLesson } = await supabase
-        .from('lessons')
-        .select('id, duration')
-        .eq('id', lessonId)
-        .eq('course_id', courseId)
-        .single();
-
-      if (currentLesson && Number(currentLesson.duration || 0) > 0) {
-        return res.status(200).json({
-          status: 'success',
-          data: { lesson: currentLesson },
-          message: 'Duration already set'
-        });
-      }
     }
 
-    let newDuration;
+    let newDurationMinutes;
     if (typeof durationSeconds === 'number' && !isNaN(durationSeconds)) {
-      newDuration = Math.max(0, Math.round(durationSeconds / 60));
+      newDurationMinutes = Math.max(0, Math.round(durationSeconds / 60));
     } else if (typeof durationMinutes === 'number' && !isNaN(durationMinutes)) {
-      newDuration = Math.max(0, Math.round(durationMinutes));
+      newDurationMinutes = Math.max(0, Math.round(durationMinutes));
     } else {
       return res.status(400).json({
         status: 'error',
@@ -587,7 +584,7 @@ router.put('/:courseId/lessons/:lessonId/duration', protect, async (req, res) =>
 
     const { data: lesson, error } = await supabase
       .from('lessons')
-      .update({ duration: newDuration, updated_at: new Date().toISOString() })
+      .update({ duration_minutes: newDurationMinutes })
       .eq('id', lessonId)
       .eq('course_id', courseId)
       .select()

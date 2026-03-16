@@ -85,7 +85,7 @@ router.post('/login', async (req, res) => {
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, name, email, role, avatar_url, bio, password_hash, is_active')
+      .select('id, name, email, role, avatar_url, password_hash')
       .eq('email', email.toLowerCase().trim())
       .single();
 
@@ -93,13 +93,6 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({
         status: 'error',
         message: 'Invalid credentials'
-      });
-    }
-
-    if (!user.is_active) {
-      return res.status(403).json({
-        status: 'error',
-        message: 'Account has been deactivated'
       });
     }
 
@@ -111,7 +104,7 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const { password_hash, is_active, ...safeUser } = user;
+    const { password_hash, ...safeUser } = user;
     const token = generateToken(user.id);
 
     res.status(200).json({
@@ -133,7 +126,7 @@ router.get('/me', protect, async (req, res) => {
     const { count: enrollmentCount } = await supabase
       .from('enrollments')
       .select('id', { count: 'exact', head: true })
-      .eq('user_id', req.user.id);
+      .eq('student_id', req.user.id);
 
     res.status(200).json({
       status: 'success',
@@ -154,21 +147,19 @@ router.get('/me', protect, async (req, res) => {
 // ──────────────────────────────────────────────
 router.put('/profile', protect, async (req, res) => {
   try {
-    const { name, firstName, lastName, bio, avatar, avatar_url } = req.body;
+    const { name, firstName, lastName, avatar_url, avatar } = req.body;
 
-    const updates = {};
+    const updates = { updated_at: new Date().toISOString() };
     const fullName = name || (firstName || lastName ? `${firstName || ''} ${lastName || ''}`.trim() : null);
     if (fullName) updates.name = fullName;
-    if (bio !== undefined) updates.bio = bio;
     const avatarValue = avatar_url || avatar;
     if (avatarValue !== undefined) updates.avatar_url = avatarValue;
-    updates.updated_at = new Date().toISOString();
 
     const { data: user, error } = await supabase
       .from('users')
       .update(updates)
       .eq('id', req.user.id)
-      .select('id, name, email, role, avatar_url, bio')
+      .select('id, name, email, role, avatar_url')
       .single();
 
     if (error) throw error;

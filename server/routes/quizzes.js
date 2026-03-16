@@ -18,7 +18,7 @@ router.use(protect);
 // ──────────────────────────────────────────────
 router.post('/', authorize('instructor', 'admin'), async (req, res) => {
   try {
-    const { course_id, title, description, duration, passing_score, shuffle_questions, difficulty } = req.body;
+    const { course_id, title, description, time_limit_minutes, duration, passing_score } = req.body;
     if (!course_id || !title) {
       return res.status(400).json({ status: 'error', message: 'course_id and title are required.' });
     }
@@ -28,11 +28,8 @@ router.post('/', authorize('instructor', 'admin'), async (req, res) => {
         course_id,
         title,
         description: description || '',
-        duration: duration || 30,
-        passing_score: passing_score || 70,
-        shuffle_questions: shuffle_questions !== undefined ? shuffle_questions : true,
-        difficulty: difficulty || 'medium',
-        is_active: true
+        time_limit_minutes: time_limit_minutes || duration || 30,
+        passing_score: passing_score || 70
       })
       .select('*')
       .single();
@@ -50,9 +47,8 @@ router.get('/course/:courseId', async (req, res) => {
   try {
     const { data: quizzes, error } = await supabase
       .from('quizzes')
-      .select('id, title, description, duration, passing_score, total_points, difficulty, is_active, attempts_allowed, created_at')
+      .select('id, title, description, time_limit_minutes, passing_score, created_at')
       .eq('course_id', req.params.courseId)
-      .eq('is_active', true)
       .order('created_at', { ascending: true });
     if (error) throw error;
     res.status(200).json({ status: 'success', results: quizzes.length, data: { quizzes } });
@@ -75,35 +71,25 @@ router.get('/:id', async (req, res) => {
 
     let { data: questions } = await supabase
       .from('questions')
-      .select('id, question_text, question_type, options, explanation, points, "order"')
+      .select('id, question_text, question_type, options, explanation, order_num')
       .eq('quiz_id', quiz.id)
-      .order('"order"', { ascending: true });
+      .order('order_num', { ascending: true });
 
-    questions = (questions || []);
-
-    // Shuffle questions and options if enabled
-    if (quiz.shuffle_questions) {
-      questions = shuffle(questions);
-    }
-
-    // For each question, strip is_correct from options before sending to client
-    questions = questions.map(q => {
+    questions = shuffle(questions || []).map(q => {
       const opts = q.options || [];
-      const sanitisedOptions = opts.map(o => ({
-        id: o.id,
-        text: o.text || o
-      }));
+      // Strip is_correct from options sent to client
+      const sanitisedOptions = opts.map(o =>
+        typeof o === 'object' ? { id: o.id, text: o.text } : { id: String(o), text: String(o) }
+      );
       return {
         ...q,
-        options: quiz.shuffle_questions && q.question_type === 'multiple-choice'
-          ? shuffle(sanitisedOptions)
-          : sanitisedOptions
+        options: q.question_type === 'multiple-choice' ? shuffle(sanitisedOptions) : sanitisedOptions
       };
     });
 
     res.status(200).json({
       status: 'success',
-      data: { quiz: { ...quiz, questions, time_limit_minutes: quiz.duration } }
+      data: { quiz: { ...quiz, questions, duration: quiz.time_limit_minutes } }
     });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
@@ -115,10 +101,11 @@ router.get('/:id', async (req, res) => {
 // ──────────────────────────────────────────────
 router.put('/:id', authorize('instructor', 'admin'), async (req, res) => {
   try {
-    const allowed = ['title', 'description', 'duration', 'passing_score', 'shuffle_questions', 'difficulty', 'is_active', 'attempts_allowed'];
-    const updates = { updated_at: new Date().toISOString() };
+    const allowed = ['title', 'description', 'time_limit_minutes', 'passing_score'];
+    const updates = {};
     Object.entries(req.body).forEach(([key, val]) => {
       if (allowed.includes(key)) updates[key] = val;
+      if (key === 'duration') updates.time_limit_minutes = val;
     });
 
     const { data: quiz, error } = await supabase
@@ -190,8 +177,7 @@ router.post('/:id/submit', async (req, res) => {
         submitted_answer: submitted,
         correct_answer: q.correct_answer || (correctOpt ? correctOpt.text : ''),
         is_correct: isCorrect,
-        explanation: q.explanation || '',
-        points: q.points || 1
+        explanation: q.explanation || ''
       };
     });
 
@@ -199,16 +185,17 @@ router.post('/:id/submit', async (req, res) => {
     const score = total > 0 ? Math.round((correct / total) * 100) : 0;
     const passed = score >= (quiz.passing_score || 70);
 
-    // Save attempt
+    // Save attempt — use the actual DB schema
+    const answersPayload = {};
+    results.forEach(r => {
+      answersPayload[r.question_id] = r.submitted_answer;
+    });
+
     await supabase.from('quiz_attempts').insert({
-      user_id: req.user.id,
+      student_id: req.user.id,
       quiz_id: quiz.id,
-      course_id: quiz.course_id,
-      score: correct,
-      total_points: total,
-      percentage: score,
-      passed,
-      answers: results
+      score,
+      answers: answersPayload
     });
 
     res.status(200).json({
@@ -233,7 +220,7 @@ router.post('/:id/submit', async (req, res) => {
 // ──────────────────────────────────────────────
 router.post('/:id/questions', authorize('instructor', 'admin'), async (req, res) => {
   try {
-    const { question_text, question_type, options, correct_answer, explanation, points, order } = req.body;
+    const { question_text, question_type, options, correct_answer, explanation, order_num, order } = req.body;
     if (!question_text) return res.status(400).json({ status: 'error', message: 'question_text is required.' });
 
     const { data: question, error } = await supabase
@@ -245,8 +232,7 @@ router.post('/:id/questions', authorize('instructor', 'admin'), async (req, res)
         options: options || [],
         correct_answer: correct_answer || '',
         explanation: explanation || '',
-        points: points || 1,
-        order: order || 0
+        order_num: order_num || order || 0
       })
       .select('*')
       .single();

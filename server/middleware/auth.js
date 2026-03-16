@@ -18,7 +18,7 @@ const protect = async (req, res, next) => {
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, name, email, role, avatar_url, bio, is_active')
+      .select('id, name, email, role, avatar_url')
       .eq('id', decoded.id)
       .single();
 
@@ -26,13 +26,6 @@ const protect = async (req, res, next) => {
       return res.status(401).json({
         status: 'error',
         message: 'User not found'
-      });
-    }
-
-    if (!user.is_active) {
-      return res.status(403).json({
-        status: 'error',
-        message: 'Account has been deactivated'
       });
     }
 
