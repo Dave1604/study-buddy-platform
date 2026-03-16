@@ -61,14 +61,22 @@ const Quiz = () => {
     try {
       const response = await quizService.getQuiz(id);
       const quizData = response.data.data.quiz;
-      quizData.questions = shuffleArray(quizData.questions).map(question => {
-        if (question.options && question.options.length > 0) {
-          return { ...question, options: shuffleArray(question.options) };
-        }
-        return question;
+      // Normalise snake_case DB fields → camelCase used in this component
+      quizData.questions = shuffleArray(quizData.questions || []).map(question => {
+        const opts = (question.options || []).map(o => ({
+          ...o,
+          _id: o._id || o.id || String(o.text),
+        }));
+        return {
+          ...question,
+          _id: question._id || question.id,
+          questionText: question.questionText || question.question_text,
+          questionType: question.questionType || question.question_type,
+          options: (question.questionType || question.question_type) === 'mcq' ? shuffleArray(opts) : opts,
+        };
       });
       setQuiz(quizData);
-      setTimeLeft(quizData.duration * 60);
+      setTimeLeft((quizData.time_limit_minutes || quizData.duration || 10) * 60);
     } catch (error) {
       console.error('Error fetching quiz:', error);
       alert('Error loading quiz');
@@ -88,10 +96,12 @@ const Quiz = () => {
     }
     setIsSubmitting(true);
     try {
-      const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => ({ questionId, answer }));
-      const timeSpent = (quiz.duration * 60) - timeLeft;
-      const response = await quizService.submitQuiz(id, { answers: formattedAnswers, timeSpent });
-      setResult(response.data.data.result);
+      // Backend expects answers as { [questionId]: answerValue }
+      const timeSpent = ((quiz.time_limit_minutes || quiz.duration || 10) * 60) - timeLeft;
+      const response = await quizService.submitQuiz(id, { answers, timeSpent });
+      // Backend may return result in data.data.result, data.data, or data directly
+      const resultData = response.data?.data?.result || response.data?.data || response.data || {};
+      setResult(resultData);
     } catch (error) {
       console.error('Error submitting quiz:', error);
       alert(error.response?.data?.message || 'Error submitting quiz');
@@ -220,24 +230,32 @@ const Quiz = () => {
   const isWarning = timeLeft < 60;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-2xl mx-auto px-4">
+    <div className="min-h-screen bg-gray-50 pb-24 sm:pb-8">
+      {/* Thin top progress bar */}
+      <div className="fixed top-0 left-0 right-0 z-50 h-1 bg-gray-200">
+        <div
+          className="h-full bg-cyan-500 transition-all duration-300"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      <div className="max-w-2xl mx-auto px-4 pt-8">
         {/* Header card */}
         <div className="card mb-4">
-          <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="flex items-start justify-between gap-4 mb-3">
             <div>
               <h1 className="text-lg font-bold text-gray-900">{quiz.title}</h1>
               {quiz.description && <p className="text-sm text-gray-500 mt-0.5">{quiz.description}</p>}
             </div>
-            <div className={`flex items-center gap-2 px-3 py-2 rounded-xl flex-shrink-0 ${isWarning ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-700'}`}>
-              <Clock className={`h-4 w-4 ${isWarning ? 'animate-pulse' : ''}`} />
-              <span className="text-sm font-bold tabular-nums">{formatTime(timeLeft)}</span>
+            {/* Timer pill — red + pulse when < 60s */}
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-full flex-shrink-0 font-bold text-sm tabular-nums ${isWarning ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-700'}`}>
+              <Clock className="h-4 w-4" />
+              {formatTime(timeLeft)}
             </div>
           </div>
 
-          {/* Progress bar */}
           <div className="flex items-center gap-3">
-            <div className="progress-bar flex-1">
+            <div className="progress-bar flex-1 progress-glow">
               <div className="progress-fill" style={{ width: `${progress}%` }} />
             </div>
             <span className="text-xs font-semibold text-gray-500 tabular-nums whitespace-nowrap">
@@ -247,17 +265,21 @@ const Quiz = () => {
         </div>
 
         {/* Question card */}
-        <div className={`card mb-4 animate-fade-in`} key={currentQuestion}>
+        <div className="card mb-4 animate-fade-in" key={currentQuestion}>
           <div className="flex items-center gap-2 mb-4">
             <span className="badge-blue">Question {currentQuestion + 1}</span>
+            <span className="text-xs text-gray-400 ml-auto">
+              {answers[question._id] ? 'Answered' : 'Not answered'}
+            </span>
           </div>
           <p className="text-base font-semibold text-gray-900 mb-6 leading-relaxed">{question.questionText}</p>
 
           <div className="space-y-3">
-            {question.questionType === 'multiple-choice' && question.options.map((option) => (
+            {question.questionType === 'mcq' && question.options.map((option) => (
               <label
                 key={option._id}
                 className={`quiz-option ${answers[question._id] === option._id ? 'selected' : ''}`}
+                style={{ minHeight: '48px' }}
                 onClick={() => handleAnswer(question._id, option._id)}
               >
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${answers[question._id] === option._id ? 'border-cyan-600 bg-cyan-600' : 'border-gray-300'}`}>
@@ -268,10 +290,11 @@ const Quiz = () => {
               </label>
             ))}
 
-            {question.questionType === 'true-false' && ['true', 'false'].map(val => (
+            {question.questionType === 'true_false' && ['True', 'False'].map(val => (
               <label
                 key={val}
                 className={`quiz-option ${answers[question._id] === val ? 'selected' : ''}`}
+                style={{ minHeight: '48px' }}
                 onClick={() => handleAnswer(question._id, val)}
               >
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${answers[question._id] === val ? 'border-cyan-600 bg-cyan-600' : 'border-gray-300'}`}>
@@ -282,13 +305,26 @@ const Quiz = () => {
               </label>
             ))}
 
-            {question.questionType === 'multiple-answer' && question.options.map((option) => {
+            {question.questionType === 'fill_blank' && (
+              <div className="mt-2">
+                <input
+                  type="text"
+                  className="input w-full"
+                  placeholder="Type your answer here…"
+                  value={answers[question._id] || ''}
+                  onChange={e => handleAnswer(question._id, e.target.value)}
+                />
+              </div>
+            )}
+
+            {question.questionType === 'multi' && question.options.map((option) => {
               const selected = answers[question._id] || [];
               const isChecked = selected.includes(option._id);
               return (
                 <label
                   key={option._id}
                   className={`quiz-option ${isChecked ? 'selected' : ''}`}
+                  style={{ minHeight: '48px' }}
                   onClick={() => {
                     const newAnswers = isChecked
                       ? selected.filter(id => id !== option._id)
@@ -307,8 +343,28 @@ const Quiz = () => {
           </div>
         </div>
 
-        {/* Navigation */}
-        <div className="flex items-center justify-between gap-4">
+        {/* Dot navigation (desktop only) */}
+        <div className="hidden sm:flex items-center justify-center gap-1.5 flex-wrap mb-4">
+          {quiz.questions.map((_, index) => (
+            <button
+              key={index}
+              className={`rounded-full transition-all duration-200 font-bold text-xs ${
+                index === currentQuestion
+                  ? 'w-8 h-7 bg-cyan-600 text-white'
+                  : answers[quiz.questions[index]._id]
+                  ? 'w-7 h-7 bg-emerald-500 text-white'
+                  : 'w-7 h-7 bg-gray-200 text-gray-600 hover:bg-gray-300'
+              }`}
+              onClick={() => goToQuestion(index, index > currentQuestion ? 'right' : 'left')}
+              aria-label={`Question ${index + 1}`}
+            >
+              {index + 1}
+            </button>
+          ))}
+        </div>
+
+        {/* Desktop navigation */}
+        <div className="hidden sm:flex items-center justify-between gap-4">
           <button
             onClick={() => goToQuestion(Math.max(0, currentQuestion - 1), 'left')}
             disabled={currentQuestion === 0}
@@ -316,26 +372,6 @@ const Quiz = () => {
           >
             <ArrowLeft className="h-4 w-4" /> Previous
           </button>
-
-          {/* Dot navigation */}
-          <div className="flex items-center gap-1.5 flex-wrap justify-center">
-            {quiz.questions.map((_, index) => (
-              <button
-                key={index}
-                className={`rounded-full transition-all duration-200 font-bold text-xs ${
-                  index === currentQuestion
-                    ? 'w-8 h-7 bg-cyan-600 text-white'
-                    : answers[quiz.questions[index]._id]
-                    ? 'w-7 h-7 bg-emerald-500 text-white'
-                    : 'w-7 h-7 bg-gray-200 text-gray-600 hover:bg-gray-300'
-                }`}
-                onClick={() => goToQuestion(index, index > currentQuestion ? 'right' : 'left')}
-                aria-label={`Question ${index + 1}`}
-              >
-                {index + 1}
-              </button>
-            ))}
-          </div>
 
           {currentQuestion < quiz.questions.length - 1 ? (
             <button
@@ -351,16 +387,50 @@ const Quiz = () => {
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-500 text-white text-sm font-semibold rounded-lg hover:bg-emerald-600 transition-all disabled:opacity-50 shadow-sm"
             >
               {isSubmitting ? (
-                <>
-                  <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                  Submitting…
-                </>
+                <><span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />Submitting…</>
               ) : (
                 <><CheckCircle className="h-4 w-4" /> Submit Quiz</>
               )}
             </button>
           )}
         </div>
+      </div>
+
+      {/* Mobile sticky bottom nav bar */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 shadow-lg px-4 py-3 z-40 flex items-center gap-3">
+        <button
+          onClick={() => goToQuestion(Math.max(0, currentQuestion - 1), 'left')}
+          disabled={currentQuestion === 0}
+          className="btn-outline flex-1 disabled:opacity-40"
+          style={{ minHeight: '48px' }}
+        >
+          <ArrowLeft className="h-4 w-4" /> Prev
+        </button>
+        <span className="text-xs font-semibold text-gray-500 tabular-nums whitespace-nowrap px-2">
+          {currentQuestion + 1}/{quiz.questions.length}
+        </span>
+        {currentQuestion < quiz.questions.length - 1 ? (
+          <button
+            onClick={() => goToQuestion(currentQuestion + 1, 'right')}
+            className="btn-primary flex-1"
+            style={{ minHeight: '48px' }}
+          >
+            Next <ArrowRight className="h-4 w-4" />
+          </button>
+        ) : (
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 text-white text-sm font-semibold rounded-lg hover:bg-emerald-600 transition-all disabled:opacity-50"
+            style={{ minHeight: '48px' }}
+          >
+            {isSubmitting ? (
+              <><span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />Submitting…</>
+            ) : (
+              <><CheckCircle className="h-4 w-4" /> Submit</>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -112,6 +112,55 @@ router.get('/', async (req, res) => {
 });
 
 // ──────────────────────────────────────────────
+// GET /api/courses/instructor  (instructor/admin — own courses)
+// ──────────────────────────────────────────────
+router.get('/instructor', protect, authorize('instructor', 'admin'), async (req, res) => {
+  try {
+    const { data: courses, error } = await supabase
+      .from('courses')
+      .select(`
+        id, title, description, category, instructor_id,
+        thumbnail_url, is_published, created_at, updated_at,
+        instructor:users!courses_instructor_id_fkey(id, name, avatar_url)
+      `)
+      .eq('instructor_id', req.user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const courseIds = (courses || []).map(c => c.id);
+    const [{ data: lessons }, { data: enrollments }] = await Promise.all([
+      courseIds.length
+        ? supabase.from('lessons').select('course_id').in('course_id', courseIds)
+        : Promise.resolve({ data: [] }),
+      courseIds.length
+        ? supabase.from('enrollments').select('course_id').in('course_id', courseIds)
+        : Promise.resolve({ data: [] })
+    ]);
+
+    const lessonCount = {};
+    (lessons || []).forEach(l => { lessonCount[l.course_id] = (lessonCount[l.course_id] || 0) + 1; });
+    const enrollCount = {};
+    (enrollments || []).forEach(e => { enrollCount[e.course_id] = (enrollCount[e.course_id] || 0) + 1; });
+
+    const result = (courses || []).map(c => ({
+      ...c,
+      thumbnail: c.thumbnail_url,
+      lesson_count: lessonCount[c.id] || 0,
+      enrolled_count: enrollCount[c.id] || 0
+    }));
+
+    res.status(200).json({
+      status: 'success',
+      results: result.length,
+      data: { courses: result }
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// ──────────────────────────────────────────────
 // GET /api/courses/enrolled  (auth required)
 // ──────────────────────────────────────────────
 router.get('/enrolled', protect, async (req, res) => {
@@ -237,8 +286,19 @@ router.get('/:id', async (req, res) => {
         course: {
           ...course,
           thumbnail: course.thumbnail_url,
-          lessons: lessons || [],
-          quizzes: quizzes || [],
+          lessons: (lessons || []).map(l => ({
+            ...l,
+            _id: l.id,
+            videoUrl: l.video_url,
+            order: l.order_num,
+            duration: l.duration_minutes
+          })),
+          quizzes: (quizzes || []).map(q => ({
+            ...q,
+            _id: q.id,
+            duration: q.time_limit_minutes,
+            passingScore: q.passing_score
+          })),
           isEnrolled,
           userProgress,
           progress: {

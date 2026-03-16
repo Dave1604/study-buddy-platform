@@ -1,1276 +1,636 @@
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
-const User = require('./models/User');
-const Course = require('./models/Course');
-const Quiz = require('./models/Quiz');
-const Progress = require('./models/Progress');
+/**
+ * Study Buddy — Database Seed Script
+ * Uses Supabase (PostgreSQL) — NOT mongoose.
+ * Run: node server/seed.js
+ */
 
-// Load environment variables
-dotenv.config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-// Connect to database
-const connectDB = async () => {
-  try {
-    await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    console.log('✅ MongoDB Connected');
-  } catch (error) {
-    console.error('❌ MongoDB Connection Error:', error.message);
-    process.exit(1);
+const bcrypt = require('bcryptjs');
+const supabase = require('./config/supabase');
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function probeColumns(table) {
+  const { data, error } = await supabase.from(table).select('*').limit(1);
+  if (error) {
+    console.warn(`  Could not probe ${table}:`, error.message);
+    return [];
   }
-};
+  const cols = data && data.length > 0 ? Object.keys(data[0]) : [];
+  console.log(`  [${table}] columns:`, cols.join(', ') || '(empty table — unknown columns)');
+  return cols;
+}
 
-// Sample data
-const seedDatabase = async () => {
-  try {
-    // Clear existing data
-    console.log('🗑️  Clearing existing data...');
-    await User.deleteMany({});
-    await Course.deleteMany({});
-    await Quiz.deleteMany({});
-    await Progress.deleteMany({});
-
-    // Create users
-    console.log('👤 Creating users...');
-    const students = await User.create([
-      {
-        firstName: 'Alice',
-        lastName: 'Johnson',
-        email: 'student@example.com',
-        password: 'password123',
-        role: 'student',
-        bio: 'Passionate learner interested in programming and design'
-      },
-      {
-        firstName: 'Bob',
-        lastName: 'Smith',
-        email: 'bob@example.com',
-        password: 'password123',
-        role: 'student',
-        bio: 'Data science enthusiast'
-      }
-    ]);
-
-    const instructors = await User.create([
-      {
-        firstName: 'Dr. Sarah',
-        lastName: 'Williams',
-        email: 'instructor@example.com',
-        password: 'password123',
-        role: 'instructor',
-        bio: 'Computer Science professor with 10+ years of experience'
-      },
-      {
-        firstName: 'John',
-        lastName: 'Davis',
-        email: 'john.davis@example.com',
-        password: 'password123',
-        role: 'instructor',
-        bio: 'Web development expert and tech educator'
-      }
-    ]);
-
-    const admin = await User.create({
-      firstName: 'Admin',
-      lastName: 'User',
-      email: 'admin@example.com',
-      password: 'password123',
-      role: 'admin',
-      bio: 'Platform administrator'
-    });
-
-    console.log('✅ Users created');
-
-    // Create courses
-    console.log('📚 Creating courses...');
-    const courses = await Course.create([
-      {
-        title: 'Introduction to JavaScript',
-        description: 'Learn the fundamentals of JavaScript programming language. Master variables, functions, loops, and object-oriented programming concepts.',
-        shortDescription: 'Master JavaScript basics and build interactive web applications',
-        instructor: instructors[1]._id,
-        category: 'programming',
-        level: 'beginner',
-        thumbnail: 'https://images.unsplash.com/photo-1579468118864-1b9ea3c0db4a?w=800',
-        videoUrl: 'https://www.youtube.com/watch?v=W6NZfCO5SIk',
-        learningObjectives: [
-          'Understand JavaScript syntax and fundamentals',
-          'Work with variables, data types, and operators',
-          'Master functions and control flow',
-          'Build interactive web applications',
-          'Understand DOM manipulation'
-        ],
-        prerequisites: ['Basic HTML and CSS knowledge'],
-        tags: ['javascript', 'programming', 'web development'],
-        lessons: [
-          {
-            title: 'Introduction to JavaScript',
-            content: 'JavaScript is a versatile programming language that powers the modern web. In this lesson, we will explore what JavaScript is, its history, and why it\'s essential for web development.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=W6NZfCO5SIk',
-            duration: 100,
-            order: 1
-          },
-          {
-            title: 'Variables and Data Types',
-            content: 'Learn about variables, constants, and different data types in JavaScript including strings, numbers, booleans, objects, and arrays.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=9emXNzqCKyg',
-            duration: 45,
-            order: 2
-          },
-          {
-            title: 'Functions and Scope',
-            content: 'Master functions, arrow functions, parameters, return values, and understand scope and closure concepts.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=N8ap4k_1QEQ',
-            duration: 60,
-            order: 3
-          },
-          {
-            title: 'Control Flow and Loops',
-            content: 'Learn about if/else statements, switch cases, for loops, while loops, and array iteration methods.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=s9wW2PpJsmQ',
-            duration: 50,
-            order: 4
-          },
-          {
-            title: 'DOM Manipulation',
-            content: 'Understand the Document Object Model and learn how to manipulate HTML elements using JavaScript.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=y17RuWkWdn8',
-            duration: 75,
-            order: 5
-          }
-        ],
-        isPublished: true,
-        estimatedDuration: 330
-      },
-      {
-        title: 'React for Beginners',
-        description: 'Build modern web applications with React. Learn components, state management, hooks, and best practices for creating scalable React applications.',
-        shortDescription: 'Build modern web apps with React and hooks',
-        instructor: instructors[1]._id,
-        category: 'programming',
-        level: 'intermediate',
-        thumbnail: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800',
-        videoUrl: 'https://www.youtube.com/watch?v=SqcY0GlETPk',
-        learningObjectives: [
-          'Understand React components and JSX',
-          'Master React hooks and state management',
-          'Build reusable component libraries',
-          'Handle forms and user input',
-          'Create single-page applications'
-        ],
-        prerequisites: ['JavaScript fundamentals', 'ES6 features'],
-        tags: ['react', 'javascript', 'frontend'],
-        lessons: [
-          {
-            title: 'Getting Started with React',
-            content: 'Introduction to React, setting up development environment, and creating your first React app.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=SqcY0GlETPk',
-            duration: 90,
-            order: 1
-          },
-          {
-            title: 'Components and Props',
-            content: 'Learn about functional and class components, JSX syntax, and passing data with props.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=RVFAyFWO4go',
-            duration: 60,
-            order: 2
-          },
-          {
-            title: 'State and Lifecycle',
-            content: 'Understanding component state, useState hook, and component lifecycle.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=O6P86uwfdR0',
-            duration: 75,
-            order: 3
-          },
-          {
-            title: 'Handling Events',
-            content: 'Learn how to handle user interactions and events in React applications.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=1ncdVkqmfdo',
-            duration: 45,
-            order: 4
-          }
-        ],
-        isPublished: true,
-        estimatedDuration: 270
-      },
-      {
-        title: 'Data Structures and Algorithms',
-        description: 'Master fundamental data structures and algorithms. Learn to solve complex problems efficiently and prepare for technical interviews.',
-        shortDescription: 'Master DSA and ace technical interviews',
-        instructor: instructors[0]._id,
-        category: 'programming',
-        level: 'intermediate',
-        thumbnail: 'https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=800',
-        videoUrl: 'https://www.youtube.com/watch?v=RBSGKlAvoiM',
-        learningObjectives: [
-          'Understand time and space complexity',
-          'Master arrays, linked lists, and trees',
-          'Implement sorting and searching algorithms',
-          'Solve algorithmic problems',
-          'Prepare for coding interviews'
-        ],
-        prerequisites: ['Basic programming knowledge', 'Understanding of loops and functions'],
-        tags: ['algorithms', 'data structures', 'problem solving'],
-        lessons: [
-          {
-            title: 'Introduction to Algorithms',
-            content: 'Understanding algorithmic thinking, Big O notation, and complexity analysis.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=RBSGKlAvoiM',
-            duration: 120,
-            order: 1
-          },
-          {
-            title: 'Arrays and Strings',
-            content: 'Common array operations, two-pointer technique, and string manipulation.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=8hly31xKli0',
-            duration: 90,
-            order: 2
-          },
-          {
-            title: 'Linked Lists',
-            content: 'Singly and doubly linked lists, operations, and common problems.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=njTh_OwMljA',
-            duration: 105,
-            order: 3
-          }
-        ],
-        isPublished: true,
-        estimatedDuration: 315
-      },
-      {
-        title: 'UI/UX Design Fundamentals',
-        description: 'Learn the principles of user interface and user experience design. Create beautiful, user-friendly designs that convert.',
-        shortDescription: 'Create beautiful and user-friendly interfaces',
-        instructor: instructors[0]._id,
-        category: 'design',
-        level: 'beginner',
-        thumbnail: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800',
-        videoUrl: 'https://www.youtube.com/watch?v=c9Wg6Cb_YlU',
-        learningObjectives: [
-          'Understand design principles and theory',
-          'Master color theory and typography',
-          'Create user-centered designs',
-          'Conduct user research and testing',
-          'Build interactive prototypes'
-        ],
-        prerequisites: ['Basic computer skills'],
-        tags: ['ui', 'ux', 'design', 'figma'],
-        lessons: [
-          {
-            title: 'Introduction to UI/UX',
-            content: 'What is UI/UX design and why it matters for digital products.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=c9Wg6Cb_YlU',
-            duration: 60,
-            order: 1
-          },
-          {
-            title: 'Design Principles',
-            content: 'Learn about balance, contrast, hierarchy, and other fundamental principles.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=a91F4z8iPNw',
-            duration: 75,
-            order: 2
-          }
-        ],
-        isPublished: true,
-        estimatedDuration: 135
-      },
-      {
-        title: 'Python for Data Science',
-        description: 'Learn Python programming for data analysis and machine learning. Work with pandas, numpy, and visualization libraries.',
-        shortDescription: 'Analyze data and build ML models with Python',
-        instructor: instructors[0]._id,
-        category: 'science',
-        level: 'intermediate',
-        learningObjectives: [
-          'Master Python programming basics',
-          'Work with pandas and numpy',
-          'Visualize data effectively',
-          'Perform statistical analysis',
-          'Introduction to machine learning'
-        ],
-        prerequisites: ['Basic programming knowledge'],
-        tags: ['python', 'data science', 'machine learning'],
-        lessons: [
-          {
-            title: 'Python Basics',
-            content: 'Introduction to Python syntax, data types, and control structures.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=rfscVS0vtbw',
-            duration: 240,
-            order: 1
-          },
-          {
-            title: 'NumPy Fundamentals',
-            content: 'Working with arrays, mathematical operations, and broadcasting.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=QUT1VHiLmmI',
-            duration: 90,
-            order: 2
-          },
-          {
-            title: 'Pandas for Data Analysis',
-            content: 'DataFrames, data cleaning, and manipulation techniques.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=vmEHCJofslg',
-            duration: 120,
-            order: 3
-          }
-        ],
-        isPublished: true,
-        estimatedDuration: 450
-      },
-      {
-        title: 'Web Development Bootcamp',
-        description: 'Complete web development course covering HTML, CSS, JavaScript, React, Node.js, and MongoDB. Build real-world projects and become a full-stack developer.',
-        shortDescription: 'Master full-stack web development from scratch',
-        instructor: instructors[0]._id,
-        category: 'programming',
-        level: 'beginner',
-        thumbnail: 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=800',
-        videoUrl: 'https://www.youtube.com/watch?v=zJSY8tbfBzQ',
-        learningObjectives: [
-          'Build responsive websites with HTML and CSS',
-          'Create interactive web applications with JavaScript',
-          'Develop full-stack applications with React and Node.js',
-          'Work with databases and APIs',
-          'Deploy applications to the cloud'
-        ],
-        prerequisites: ['Basic computer skills'],
-        tags: ['web development', 'full-stack', 'javascript', 'react', 'nodejs'],
-        lessons: [
-          {
-            title: 'HTML Fundamentals',
-            content: 'Learn the structure and syntax of HTML, create semantic markup, and understand web standards.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=qz0aGYrrlhU',
-            duration: 120,
-            order: 1
-          },
-          {
-            title: 'CSS Styling and Layout',
-            content: 'Master CSS selectors, properties, flexbox, grid, and responsive design principles.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=1Rs2ND1ryYc',
-            duration: 150,
-            order: 2
-          },
-          {
-            title: 'JavaScript ES6+',
-            content: 'Modern JavaScript features including arrow functions, destructuring, modules, and async/await.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=WZ1c1sWlMf8',
-            duration: 180,
-            order: 3
-          },
-          {
-            title: 'React Development',
-            content: 'Build dynamic user interfaces with React components, hooks, and state management.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=DLX62G4lc44',
-            duration: 200,
-            order: 4
-          },
-          {
-            title: 'Node.js Backend',
-            content: 'Create server-side applications with Node.js, Express, and RESTful APIs.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=Oe421EPjeBE',
-            duration: 160,
-            order: 5
-          }
-        ],
-        isPublished: true,
-        estimatedDuration: 810
-      },
-      {
-        title: 'Machine Learning with Python',
-        description: 'Learn machine learning algorithms, data preprocessing, model training, and deployment using Python and popular ML libraries.',
-        shortDescription: 'Master machine learning from theory to practice',
-        instructor: instructors[0]._id,
-        category: 'science',
-        level: 'intermediate',
-        thumbnail: 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800',
-        videoUrl: 'https://www.youtube.com/watch?v=7eh4d6sabA0',
-        learningObjectives: [
-          'Understand machine learning concepts and algorithms',
-          'Preprocess and analyze data for ML models',
-          'Implement supervised and unsupervised learning',
-          'Evaluate and optimize model performance',
-          'Deploy ML models to production'
-        ],
-        prerequisites: ['Python programming basics', 'Basic statistics knowledge'],
-        tags: ['machine learning', 'python', 'data science', 'AI', 'scikit-learn'],
-        lessons: [
-          {
-            title: 'Introduction to Machine Learning',
-            content: 'Overview of ML concepts, types of learning, and the ML workflow.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=7eh4d6sabA0',
-            duration: 90,
-            order: 1
-          },
-          {
-            title: 'Data Preprocessing',
-            content: 'Data cleaning, feature engineering, and preparation for ML algorithms.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=aircAruvnKk',
-            duration: 120,
-            order: 2
-          },
-          {
-            title: 'Supervised Learning',
-            content: 'Linear regression, decision trees, random forests, and SVM algorithms.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=aircAruvnKk',
-            duration: 150,
-            order: 3
-          },
-          {
-            title: 'Unsupervised Learning',
-            content: 'Clustering algorithms, dimensionality reduction, and anomaly detection.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=aircAruvnKk',
-            duration: 120,
-            order: 4
-          }
-        ],
-        isPublished: true,
-        estimatedDuration: 480
-      },
-      {
-        title: 'Digital Marketing Mastery',
-        description: 'Comprehensive digital marketing course covering SEO, social media, content marketing, email campaigns, and analytics.',
-        shortDescription: 'Master digital marketing strategies and tools',
-        instructor: instructors[1]._id,
-        category: 'business',
-        level: 'beginner',
-        thumbnail: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800',
-        videoUrl: 'https://www.youtube.com/watch?v=7kVeCqQCxlk',
-        learningObjectives: [
-          'Develop effective digital marketing strategies',
-          'Master SEO and content marketing techniques',
-          'Create engaging social media campaigns',
-          'Analyze marketing performance with analytics',
-          'Build and manage email marketing campaigns'
-        ],
-        prerequisites: ['Basic business knowledge'],
-        tags: ['digital marketing', 'SEO', 'social media', 'content marketing', 'analytics'],
-        lessons: [
-          {
-            title: 'Digital Marketing Fundamentals',
-            content: 'Introduction to digital marketing channels, strategies, and best practices.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=7kVeCqQCxlk',
-            duration: 90,
-            order: 1
-          },
-          {
-            title: 'SEO and Content Marketing',
-            content: 'Search engine optimization, keyword research, and content strategy.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=7kVeCqQCxlk',
-            duration: 120,
-            order: 2
-          },
-          {
-            title: 'Social Media Marketing',
-            content: 'Platform-specific strategies for Facebook, Instagram, LinkedIn, and Twitter.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=7kVeCqQCxlk',
-            duration: 100,
-            order: 3
-          },
-          {
-            title: 'Email Marketing and Analytics',
-            content: 'Email campaign design, automation, and performance measurement.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=7kVeCqQCxlk',
-            duration: 80,
-            order: 4
-          }
-        ],
-        isPublished: true,
-        estimatedDuration: 390
-      },
-      {
-        title: 'Mobile App Development',
-        description: 'Learn to build native and cross-platform mobile applications using React Native, Flutter, and modern development tools.',
-        shortDescription: 'Build mobile apps for iOS and Android',
-        instructor: instructors[1]._id,
-        category: 'programming',
-        level: 'intermediate',
-        thumbnail: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=800',
-        videoUrl: 'https://www.youtube.com/watch?v=0-S5a0eTPoc',
-        learningObjectives: [
-          'Build cross-platform mobile applications',
-          'Master React Native and Flutter frameworks',
-          'Implement mobile UI/UX best practices',
-          'Handle mobile app state management',
-          'Deploy apps to app stores'
-        ],
-        prerequisites: ['JavaScript fundamentals', 'Basic React knowledge'],
-        tags: ['mobile development', 'react native', 'flutter', 'iOS', 'Android'],
-        lessons: [
-          {
-            title: 'Introduction to Mobile Development',
-            content: 'Overview of mobile development approaches, native vs cross-platform.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=0-S5a0eTPoc',
-            duration: 60,
-            order: 1
-          },
-          {
-            title: 'React Native Basics',
-            content: 'Setting up React Native, components, navigation, and styling.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=0-S5a0eTPoc',
-            duration: 120,
-            order: 2
-          },
-          {
-            title: 'Flutter Development',
-            content: 'Building apps with Flutter, widgets, state management, and navigation.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=0-S5a0eTPoc',
-            duration: 150,
-            order: 3
-          },
-          {
-            title: 'App Store Deployment',
-            content: 'Publishing apps to Google Play Store and Apple App Store.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=0-S5a0eTPoc',
-            duration: 90,
-            order: 4
-          }
-        ],
-        isPublished: true,
-        estimatedDuration: 420
-      },
-      {
-        title: 'Cybersecurity Fundamentals',
-        description: 'Learn essential cybersecurity concepts, threat analysis, network security, and ethical hacking techniques.',
-        shortDescription: 'Protect systems and data from cyber threats',
-        instructor: instructors[0]._id,
-        category: 'science',
-        level: 'intermediate',
-        thumbnail: 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=800',
-        videoUrl: 'https://www.youtube.com/watch?v=inWWhr5tnEA',
-        learningObjectives: [
-          'Understand cybersecurity threats and vulnerabilities',
-          'Implement network security measures',
-          'Conduct security assessments and penetration testing',
-          'Develop secure coding practices',
-          'Create incident response plans'
-        ],
-        prerequisites: ['Basic networking knowledge', 'Programming experience'],
-        tags: ['cybersecurity', 'network security', 'ethical hacking', 'penetration testing'],
-        lessons: [
-          {
-            title: 'Cybersecurity Overview',
-            content: 'Introduction to cybersecurity concepts, threats, and defense strategies.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=inWWhr5tnEA',
-            duration: 90,
-            order: 1
-          },
-          {
-            title: 'Network Security',
-            content: 'Firewalls, intrusion detection, VPNs, and network monitoring.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=inWWhr5tnEA',
-            duration: 120,
-            order: 2
-          },
-          {
-            title: 'Penetration Testing',
-            content: 'Ethical hacking techniques, vulnerability assessment, and security testing.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=inWWhr5tnEA',
-            duration: 150,
-            order: 3
-          },
-          {
-            title: 'Incident Response',
-            content: 'Security incident handling, forensics, and recovery procedures.',
-            contentType: 'video',
-            videoUrl: 'https://www.youtube.com/watch?v=inWWhr5tnEA',
-            duration: 100,
-            order: 4
-          }
-        ],
-        isPublished: true,
-        estimatedDuration: 460
-      }
-    ]);
-
-    console.log('✅ Courses created');
-
-    // Create quizzes
-    console.log('❓ Creating quizzes...');
-    const quizzes = await Quiz.create([
-      {
-        title: 'JavaScript Basics Quiz',
-        description: 'Test your knowledge of JavaScript fundamentals',
-        course: courses[0]._id,
-        duration: 15,
-        passingScore: 70,
-        difficulty: 'easy',
-        questions: [
-          {
-            questionText: 'Which keyword is used to declare a variable in JavaScript?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'var', isCorrect: true },
-              { text: 'variable', isCorrect: false },
-              { text: 'v', isCorrect: false },
-              { text: 'declare', isCorrect: false }
-            ],
-            explanation: 'In JavaScript, variables can be declared using var, let, or const keywords.',
-            points: 1,
-            order: 1
-          },
-          {
-            questionText: 'JavaScript is a compiled language.',
-            questionType: 'true-false',
-            correctAnswer: 'false',
-            explanation: 'JavaScript is an interpreted language, not compiled.',
-            points: 1,
-            order: 2
-          },
-          {
-            questionText: 'What are the primitive data types in JavaScript?',
-            questionType: 'multiple-answer',
-            options: [
-              { text: 'String', isCorrect: true },
-              { text: 'Number', isCorrect: true },
-              { text: 'Boolean', isCorrect: true },
-              { text: 'Object', isCorrect: false }
-            ],
-            explanation: 'Primitive types include String, Number, Boolean, Null, Undefined, Symbol, and BigInt.',
-            points: 2,
-            order: 3
-          },
-          {
-            questionText: 'Which function is used to parse a string to an integer?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'parseInt()', isCorrect: true },
-              { text: 'parseInteger()', isCorrect: false },
-              { text: 'toInt()', isCorrect: false },
-              { text: 'convertInt()', isCorrect: false }
-            ],
-            explanation: 'parseInt() is the built-in function to convert strings to integers.',
-            points: 1,
-            order: 4
-          },
-          {
-            questionText: 'Arrays in JavaScript can hold multiple data types.',
-            questionType: 'true-false',
-            correctAnswer: 'true',
-            explanation: 'JavaScript arrays are flexible and can contain different data types.',
-            points: 1,
-            order: 5
-          },
-          {
-            questionText: 'What is the output of: typeof null?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'object', isCorrect: true },
-              { text: 'null', isCorrect: false },
-              { text: 'undefined', isCorrect: false },
-              { text: 'string', isCorrect: false }
-            ],
-            explanation: 'typeof null returns "object" due to a legacy bug in JavaScript.',
-            points: 1,
-            order: 6
-          },
-          {
-            questionText: 'Which method adds an element to the end of an array?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'push()', isCorrect: true },
-              { text: 'pop()', isCorrect: false },
-              { text: 'shift()', isCorrect: false },
-              { text: 'unshift()', isCorrect: false }
-            ],
-            explanation: 'push() adds elements to the end, while pop() removes from the end.',
-            points: 1,
-            order: 7
-          },
-          {
-            questionText: 'The === operator checks for both value and type equality.',
-            questionType: 'true-false',
-            correctAnswer: 'true',
-            explanation: 'The strict equality operator (===) checks both value and data type.',
-            points: 1,
-            order: 8
-          },
-          {
-            questionText: 'What is a closure in JavaScript?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'A function with access to its own scope, outer function scope, and global scope', isCorrect: true },
-              { text: 'A way to close browser windows', isCorrect: false },
-              { text: 'An error handling mechanism', isCorrect: false },
-              { text: 'A type of loop', isCorrect: false }
-            ],
-            explanation: 'Closures allow functions to access variables from outer scopes even after the outer function has returned.',
-            points: 1,
-            order: 9
-          },
-          {
-            questionText: 'Which of these are looping structures in JavaScript?',
-            questionType: 'multiple-answer',
-            options: [
-              { text: 'for', isCorrect: true },
-              { text: 'while', isCorrect: true },
-              { text: 'forEach', isCorrect: true },
-              { text: 'if', isCorrect: false }
-            ],
-            explanation: 'for, while, do-while, and forEach are all looping structures in JavaScript.',
-            points: 2,
-            order: 10
-          },
-          {
-            questionText: 'What does DOM stand for?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'Document Object Model', isCorrect: true },
-              { text: 'Data Object Model', isCorrect: false },
-              { text: 'Digital Object Model', isCorrect: false },
-              { text: 'Dynamic Object Model', isCorrect: false }
-            ],
-            explanation: 'DOM stands for Document Object Model, a programming interface for HTML documents.',
-            points: 1,
-            order: 11
-          },
-          {
-            questionText: 'let and const are block-scoped.',
-            questionType: 'true-false',
-            correctAnswer: 'true',
-            explanation: 'Unlike var, both let and const are block-scoped, meaning they exist only within the nearest enclosing block.',
-            points: 1,
-            order: 12
-          },
-          {
-            questionText: 'Which method converts a JSON string to a JavaScript object?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'JSON.parse()', isCorrect: true },
-              { text: 'JSON.stringify()', isCorrect: false },
-              { text: 'JSON.convert()', isCorrect: false },
-              { text: 'JSON.toObject()', isCorrect: false }
-            ],
-            explanation: 'JSON.parse() converts JSON strings to JavaScript objects, while JSON.stringify() does the opposite.',
-            points: 1,
-            order: 13
-          },
-          {
-            questionText: 'What is the purpose of the this keyword?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'Refers to the object that is executing the current function', isCorrect: true },
-              { text: 'Creates a new variable', isCorrect: false },
-              { text: 'Defines a constant', isCorrect: false },
-              { text: 'Imports a module', isCorrect: false }
-            ],
-            explanation: 'The this keyword refers to the object that is currently executing the function.',
-            points: 1,
-            order: 14
-          },
-          {
-            questionText: 'Arrow functions have their own this binding.',
-            questionType: 'true-false',
-            correctAnswer: 'false',
-            explanation: 'Arrow functions do not have their own this binding; they inherit this from the parent scope.',
-            points: 1,
-            order: 15
-          },
-          {
-            questionText: 'Which are valid ways to create an object in JavaScript?',
-            questionType: 'multiple-answer',
-            options: [
-              { text: 'Object literal {}', isCorrect: true },
-              { text: 'new Object()', isCorrect: true },
-              { text: 'Object.create()', isCorrect: true },
-              { text: 'createObject()', isCorrect: false }
-            ],
-            explanation: 'Objects can be created using literals, constructors, or Object.create().',
-            points: 2,
-            order: 16
-          }
-        ],
-        isActive: true
-      },
-      {
-        title: 'React Components Quiz',
-        description: 'Test your understanding of React components and props',
-        course: courses[1]._id,
-        duration: 20,
-        passingScore: 75,
-        difficulty: 'medium',
-        questions: [
-          {
-            questionText: 'What is JSX?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'JavaScript XML', isCorrect: true },
-              { text: 'JavaScript Extension', isCorrect: false },
-              { text: 'Java Syntax Extension', isCorrect: false },
-              { text: 'JSON XML', isCorrect: false }
-            ],
-            explanation: 'JSX stands for JavaScript XML, allowing HTML-like syntax in JavaScript.',
-            points: 1,
-            order: 1
-          },
-          {
-            questionText: 'React components must return a single root element.',
-            questionType: 'true-false',
-            correctAnswer: 'true',
-            explanation: 'React components must return a single parent element or fragment.',
-            points: 1,
-            order: 2
-          },
-          {
-            questionText: 'Which hooks are built into React?',
-            questionType: 'multiple-answer',
-            options: [
-              { text: 'useState', isCorrect: true },
-              { text: 'useEffect', isCorrect: true },
-              { text: 'useData', isCorrect: false },
-              { text: 'useComponent', isCorrect: false }
-            ],
-            explanation: 'React provides many built-in hooks including useState, useEffect, useContext, etc.',
-            points: 2,
-            order: 3
-          },
-          {
-            questionText: 'What does useState return?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'An array with state value and setter function', isCorrect: true },
-              { text: 'A single state value', isCorrect: false },
-              { text: 'An object with state properties', isCorrect: false },
-              { text: 'A function to update state', isCorrect: false }
-            ],
-            explanation: 'useState returns an array containing the current state value and a function to update it.',
-            points: 1,
-            order: 4
-          },
-          {
-            questionText: 'Props are mutable in React.',
-            questionType: 'true-false',
-            correctAnswer: 'false',
-            explanation: 'Props are read-only and cannot be modified by the component receiving them.',
-            points: 1,
-            order: 5
-          },
-          {
-            questionText: 'What is the Virtual DOM?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'A lightweight copy of the actual DOM', isCorrect: true },
-              { text: 'A database for React', isCorrect: false },
-              { text: 'A testing framework', isCorrect: false },
-              { text: 'A CSS framework', isCorrect: false }
-            ],
-            explanation: 'The Virtual DOM is a lightweight representation that React uses to optimize updates.',
-            points: 1,
-            order: 6
-          },
-          {
-            questionText: 'useEffect runs after every render by default.',
-            questionType: 'true-false',
-            correctAnswer: 'true',
-            explanation: 'Without a dependency array, useEffect runs after every render.',
-            points: 1,
-            order: 7
-          },
-          {
-            questionText: 'Which are valid ways to handle events in React?',
-            questionType: 'multiple-answer',
-            options: [
-              { text: 'onClick={handleClick}', isCorrect: true },
-              { text: 'onClick={() => handleClick()}', isCorrect: true },
-              { text: 'on-click="handleClick"', isCorrect: false },
-              { text: 'onclick={handleClick}', isCorrect: false }
-            ],
-            explanation: 'React uses camelCase event handlers like onClick, onChange, etc.',
-            points: 2,
-            order: 8
-          },
-          {
-            questionText: 'What is the purpose of keys in React lists?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'Help React identify which items have changed', isCorrect: true },
-              { text: 'Encrypt the data', isCorrect: false },
-              { text: 'Style the elements', isCorrect: false },
-              { text: 'Add security', isCorrect: false }
-            ],
-            explanation: 'Keys help React identify which items in a list have changed, been added, or removed.',
-            points: 1,
-            order: 9
-          },
-          {
-            questionText: 'React is a JavaScript library, not a framework.',
-            questionType: 'true-false',
-            correctAnswer: 'true',
-            explanation: 'React is officially a library for building UIs, not a complete framework.',
-            points: 1,
-            order: 10
-          },
-          {
-            questionText: 'What does the useContext hook do?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'Allows components to access context values', isCorrect: true },
-              { text: 'Creates a new context', isCorrect: false },
-              { text: 'Manages component state', isCorrect: false },
-              { text: 'Handles side effects', isCorrect: false }
-            ],
-            explanation: 'useContext allows functional components to consume context values.',
-            points: 1,
-            order: 11
-          },
-          {
-            questionText: 'Which lifecycle methods are replaced by useEffect?',
-            questionType: 'multiple-answer',
-            options: [
-              { text: 'componentDidMount', isCorrect: true },
-              { text: 'componentDidUpdate', isCorrect: true },
-              { text: 'componentWillUnmount', isCorrect: true },
-              { text: 'render', isCorrect: false }
-            ],
-            explanation: 'useEffect can replicate componentDidMount, componentDidUpdate, and componentWillUnmount.',
-            points: 2,
-            order: 12
-          },
-          {
-            questionText: 'What is prop drilling?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'Passing props through multiple component layers', isCorrect: true },
-              { text: 'A React debugging tool', isCorrect: false },
-              { text: 'A performance optimization', isCorrect: false },
-              { text: 'A testing technique', isCorrect: false }
-            ],
-            explanation: 'Prop drilling is passing props through intermediate components that don\'t need them.',
-            points: 1,
-            order: 13
-          },
-          {
-            questionText: 'React.Fragment can be written as <> </> shorthand.',
-            questionType: 'true-false',
-            correctAnswer: 'true',
-            explanation: 'The shorthand syntax <> </> is equivalent to <React.Fragment></React.Fragment>.',
-            points: 1,
-            order: 14
-          },
-          {
-            questionText: 'What is the purpose of React.memo?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'Prevents unnecessary re-renders of components', isCorrect: true },
-              { text: 'Stores data in memory', isCorrect: false },
-              { text: 'Creates memoized values', isCorrect: false },
-              { text: 'Manages application state', isCorrect: false }
-            ],
-            explanation: 'React.memo is a higher-order component that prevents re-renders when props haven\'t changed.',
-            points: 1,
-            order: 15
-          }
-        ],
-        isActive: true
-      },
-      {
-        title: 'Algorithms Quiz',
-        description: 'Test your knowledge of algorithms and complexity',
-        course: courses[2]._id,
-        duration: 25,
-        passingScore: 70,
-        difficulty: 'hard',
-        questions: [
-          {
-            questionText: 'What is the time complexity of binary search?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'O(log n)', isCorrect: true },
-              { text: 'O(n)', isCorrect: false },
-              { text: 'O(n log n)', isCorrect: false },
-              { text: 'O(n²)', isCorrect: false }
-            ],
-            explanation: 'Binary search has O(log n) time complexity as it halves the search space each iteration.',
-            points: 2,
-            order: 1
-          },
-          {
-            questionText: 'Quicksort has O(n log n) average time complexity.',
-            questionType: 'true-false',
-            correctAnswer: 'true',
-            explanation: 'Quicksort averages O(n log n) but worst case is O(n²).',
-            points: 1,
-            order: 2
-          },
-          {
-            questionText: 'What data structure uses LIFO (Last In First Out)?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'Stack', isCorrect: true },
-              { text: 'Queue', isCorrect: false },
-              { text: 'Array', isCorrect: false },
-              { text: 'Tree', isCorrect: false }
-            ],
-            explanation: 'A Stack follows the LIFO principle, while a Queue follows FIFO.',
-            points: 1,
-            order: 3
-          },
-          {
-            questionText: 'Hash tables have O(1) average lookup time.',
-            questionType: 'true-false',
-            correctAnswer: 'true',
-            explanation: 'Hash tables provide constant-time average-case lookup, insertion, and deletion.',
-            points: 1,
-            order: 4
-          },
-          {
-            questionText: 'Which sorting algorithms are comparison-based?',
-            questionType: 'multiple-answer',
-            options: [
-              { text: 'Quicksort', isCorrect: true },
-              { text: 'Merge Sort', isCorrect: true },
-              { text: 'Counting Sort', isCorrect: false },
-              { text: 'Radix Sort', isCorrect: false }
-            ],
-            explanation: 'Comparison-based sorts compare elements, while counting and radix sort use other techniques.',
-            points: 2,
-            order: 5
-          },
-          {
-            questionText: 'What is the worst-case time complexity of insertion sort?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'O(n²)', isCorrect: true },
-              { text: 'O(n log n)', isCorrect: false },
-              { text: 'O(n)', isCorrect: false },
-              { text: 'O(log n)', isCorrect: false }
-            ],
-            explanation: 'Insertion sort has O(n²) worst-case complexity but O(n) best-case for nearly sorted arrays.',
-            points: 2,
-            order: 6
-          },
-          {
-            questionText: 'A binary tree with n nodes has at most log(n) levels.',
-            questionType: 'true-false',
-            correctAnswer: 'false',
-            explanation: 'A balanced binary tree has log(n) levels, but an unbalanced tree can have n levels.',
-            points: 1,
-            order: 7
-          },
-          {
-            questionText: 'Which algorithm is best for finding shortest path in a weighted graph?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'Dijkstra\'s algorithm', isCorrect: true },
-              { text: 'Binary search', isCorrect: false },
-              { text: 'Bubble sort', isCorrect: false },
-              { text: 'Linear search', isCorrect: false }
-            ],
-            explanation: 'Dijkstra\'s algorithm finds shortest paths from a source to all vertices in weighted graphs.',
-            points: 2,
-            order: 8
-          },
-          {
-            questionText: 'Which data structures can be used to implement a priority queue?',
-            questionType: 'multiple-answer',
-            options: [
-              { text: 'Heap', isCorrect: true },
-              { text: 'Binary Search Tree', isCorrect: true },
-              { text: 'Array', isCorrect: true },
-              { text: 'None', isCorrect: false }
-            ],
-            explanation: 'Priority queues can be implemented with heaps (most efficient), BSTs, or arrays.',
-            points: 2,
-            order: 9
-          },
-          {
-            questionText: 'What is space complexity?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'The amount of memory an algorithm uses', isCorrect: true },
-              { text: 'The time an algorithm takes', isCorrect: false },
-              { text: 'The number of operations', isCorrect: false },
-              { text: 'The input size', isCorrect: false }
-            ],
-            explanation: 'Space complexity measures the total memory space required by an algorithm.',
-            points: 1,
-            order: 10
-          },
-          {
-            questionText: 'Breadth-First Search uses a queue.',
-            questionType: 'true-false',
-            correctAnswer: 'true',
-            explanation: 'BFS uses a queue to explore nodes level by level, while DFS uses a stack.',
-            points: 1,
-            order: 11
-          },
-          {
-            questionText: 'What is the best-case time complexity of quicksort?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'O(n log n)', isCorrect: true },
-              { text: 'O(n²)', isCorrect: false },
-              { text: 'O(n)', isCorrect: false },
-              { text: 'O(log n)', isCorrect: false }
-            ],
-            explanation: 'Quicksort\'s best and average case is O(n log n), worst case is O(n²).',
-            points: 2,
-            order: 12
-          },
-          {
-            questionText: 'Which algorithms use divide and conquer?',
-            questionType: 'multiple-answer',
-            options: [
-              { text: 'Merge Sort', isCorrect: true },
-              { text: 'Quicksort', isCorrect: true },
-              { text: 'Binary Search', isCorrect: true },
-              { text: 'Bubble Sort', isCorrect: false }
-            ],
-            explanation: 'Divide and conquer algorithms split problems into subproblems, solve them, and combine results.',
-            points: 2,
-            order: 13
-          },
-          {
-            questionText: 'A linked list allows O(1) access to any element.',
-            questionType: 'true-false',
-            correctAnswer: 'false',
-            explanation: 'Linked lists require O(n) time for random access, unlike arrays with O(1) access.',
-            points: 1,
-            order: 14
-          },
-          {
-            questionText: 'What is the main advantage of merge sort over quicksort?',
-            questionType: 'multiple-choice',
-            options: [
-              { text: 'Guaranteed O(n log n) time complexity', isCorrect: true },
-              { text: 'Uses less memory', isCorrect: false },
-              { text: 'Faster in practice', isCorrect: false },
-              { text: 'Simpler to implement', isCorrect: false }
-            ],
-            explanation: 'Merge sort always runs in O(n log n) time, while quicksort can degrade to O(n²).',
-            points: 2,
-            order: 15
-          },
-          {
-            questionText: 'Dynamic programming is used to solve problems with overlapping subproblems.',
-            questionType: 'true-false',
-            correctAnswer: 'true',
-            explanation: 'Dynamic programming optimizes recursive solutions by caching results of overlapping subproblems.',
-            points: 1,
-            order: 16
-          }
-        ],
-        isActive: true
-      }
-    ]);
-
-    console.log('✅ Quizzes created');
-
-    // Enroll students in courses
-    console.log('📝 Enrolling students...');
-    courses[0].enrolledStudents.push(students[0]._id, students[1]._id);
-    courses[1].enrolledStudents.push(students[0]._id);
-    courses[2].enrolledStudents.push(students[1]._id);
-    
-    await Promise.all(courses.map(c => c.save()));
-
-    students[0].enrolledCourses.push(courses[0]._id, courses[1]._id);
-    students[1].enrolledCourses.push(courses[0]._id, courses[2]._id);
-    
-    await Promise.all(students.map(s => s.save()));
-
-    // Create progress entries
-    console.log('📊 Creating progress entries...');
-    await Progress.create([
-      {
-        user: students[0]._id,
-        course: courses[0]._id,
-        completionPercentage: 40,
-        lessonsProgress: [
-          { lessonId: courses[0].lessons[0]._id, completed: true, completedAt: new Date(), timeSpent: 15 },
-          { lessonId: courses[0].lessons[1]._id, completed: true, completedAt: new Date(), timeSpent: 20 }
-        ],
-        quizAttempts: [
-          {
-            quiz: quizzes[0]._id,
-            score: 5,
-            totalPoints: 6,
-            percentage: 83,
-            passed: true,
-            answers: [],
-            attemptedAt: new Date()
-          }
-        ],
-        totalTimeSpent: 35
-      },
-      {
-        user: students[0]._id,
-        course: courses[1]._id,
-        completionPercentage: 25,
-        lessonsProgress: [
-          { lessonId: courses[1].lessons[0]._id, completed: true, completedAt: new Date(), timeSpent: 20 }
-        ],
-        totalTimeSpent: 20
-      },
-      {
-        user: students[1]._id,
-        course: courses[0]._id,
-        completionPercentage: 60,
-        lessonsProgress: [
-          { lessonId: courses[0].lessons[0]._id, completed: true, completedAt: new Date(), timeSpent: 15 },
-          { lessonId: courses[0].lessons[1]._id, completed: true, completedAt: new Date(), timeSpent: 20 },
-          { lessonId: courses[0].lessons[2]._id, completed: true, completedAt: new Date(), timeSpent: 25 }
-        ],
-        totalTimeSpent: 60
-      }
-    ]);
-
-    console.log('✅ Progress entries created');
-
-    console.log('\n🎉 Database seeded successfully!\n');
-    console.log('📧 Demo Accounts:');
-    console.log('   Student: student@example.com / password123');
-    console.log('   Instructor: instructor@example.com / password123');
-    console.log('   Admin: admin@example.com / password123\n');
-
-    process.exit(0);
-  } catch (error) {
-    console.error('❌ Error seeding database:', error);
-    process.exit(1);
+async function clearTable(table) {
+  // Delete all rows — Supabase requires a filter; use neq on id with a non-matching value won't work.
+  // Use a raw delete with a truthy filter via gt on a common column or use .neq('id', '00000000-0000-0000-0000-000000000000').
+  const { error } = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  if (error) {
+    console.warn(`  Warning clearing ${table}:`, error.message);
+  } else {
+    console.log(`  Cleared ${table}`);
   }
-};
+}
 
-// Run the seeder
-const runSeeder = async () => {
-  await connectDB();
-  await seedDatabase();
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// Main seed
+// ─────────────────────────────────────────────────────────────────────────────
 
-runSeeder();
+async function seed() {
+  console.log('\n=== Study Buddy Seed Script ===\n');
+
+  // ── 1. Probe actual columns ────────────────────────────────────────────────
+  console.log('Probing table schemas...');
+  await probeColumns('users');
+  await probeColumns('courses');
+  await probeColumns('lessons');
+  await probeColumns('quizzes');
+  await probeColumns('questions');
+  await probeColumns('enrollments');
+  await probeColumns('quiz_attempts');
+
+  // ── 2. Clear existing data (order matters for FK constraints) ─────────────
+  console.log('\nClearing existing data...');
+  await clearTable('quiz_attempts');
+  await clearTable('questions');
+  await clearTable('quizzes');
+  await clearTable('enrollments');
+  await clearTable('progress');
+  await clearTable('lessons');
+  await clearTable('courses');
+  // Clear non-admin users only (keep any manually created admins)
+  await supabase.from('users').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  console.log('  Cleared users');
+
+  // ── 3. Create users ────────────────────────────────────────────────────────
+  console.log('\nCreating users...');
+  const password = await bcrypt.hash('password123', 10);
+
+  const { data: users, error: usersErr } = await supabase
+    .from('users')
+    .insert([
+      {
+        name: 'Dr. Sarah Williams',
+        email: 'instructor@studybuddy.com',
+        password_hash: password,
+        role: 'instructor'
+      },
+      {
+        name: 'Alice Johnson',
+        email: 'student@studybuddy.com',
+        password_hash: password,
+        role: 'student'
+      },
+      {
+        name: 'Bob Smith',
+        email: 'bob@studybuddy.com',
+        password_hash: password,
+        role: 'student'
+      }
+    ])
+    .select('id, name, email, role');
+
+  if (usersErr) throw new Error('Users insert failed: ' + usersErr.message);
+  console.log(`  Created ${users.length} users`);
+
+  const instructor = users.find(u => u.role === 'instructor');
+  const student1 = users.find(u => u.email === 'student@studybuddy.com');
+
+  // ── 4. Course + lesson + quiz data ────────────────────────────────────────
+  const coursesData = [
+    {
+      title: 'Python for Beginners',
+      description: 'Learn Python from scratch with hands-on projects',
+      category: 'programming',
+      lessons: [
+        { title: 'Introduction to Python',  video_url: 'https://www.youtube.com/watch?v=kqtD5dpn9C8', order_num: 1, duration_minutes: 46, description: 'Get started with Python — installation, IDLE, and your first script.' },
+        { title: 'Variables & Data Types',  video_url: 'https://www.youtube.com/watch?v=cQT33yu9pY8', order_num: 2, duration_minutes: 28, description: 'Understand integers, floats, strings, and booleans.' },
+        { title: 'Control Flow',            video_url: 'https://www.youtube.com/watch?v=DZwmZ8Usvnk', order_num: 3, duration_minutes: 35, description: 'Master if/elif/else and loops.' },
+        { title: 'Functions in Python',     video_url: 'https://www.youtube.com/watch?v=9Os0o3wzS_I', order_num: 4, duration_minutes: 52, description: 'Define reusable functions with parameters and return values.' },
+        { title: 'Lists, Dicts & Tuples',   video_url: 'https://www.youtube.com/watch?v=W8KRzm-HUcc', order_num: 5, duration_minutes: 44, description: 'Work with Python\'s core data structures.' }
+      ],
+      quiz: {
+        title: 'Python Fundamentals Quiz',
+        description: 'Test your knowledge of Python basics',
+        time_limit_minutes: 15,
+        passing_score: 70,
+        questions: [
+          {
+            question_text: 'The keyword used to define a function in Python is ___',
+            question_type: 'fill_blank',
+            options: [],
+            correct_answer: 'def',
+            explanation: 'def keyword defines functions. Example: def my_function():',
+            order_num: 1
+          },
+          {
+            question_text: 'What does len([1,2,3]) return?',
+            question_type: 'mcq',
+            options: [
+              { id: 'a', text: '3', is_correct: true },
+              { id: 'b', text: '2', is_correct: false },
+              { id: 'c', text: '4', is_correct: false },
+              { id: 'd', text: '1', is_correct: false }
+            ],
+            correct_answer: '3',
+            explanation: 'len() returns the number of items in a list. [1,2,3] has 3 elements.',
+            order_num: 2
+          },
+          {
+            question_text: 'Python uses indentation to define code blocks',
+            question_type: 'true_false',
+            options: [],
+            correct_answer: 'True',
+            explanation: 'Unlike other languages that use braces {}, Python uses indentation (whitespace) to define code structure.',
+            order_num: 3
+          },
+          {
+            question_text: 'Which data type is immutable in Python?',
+            question_type: 'mcq',
+            options: [
+              { id: 'a', text: 'list',  is_correct: false },
+              { id: 'b', text: 'dict',  is_correct: false },
+              { id: 'c', text: 'tuple', is_correct: true },
+              { id: 'd', text: 'set',   is_correct: false }
+            ],
+            correct_answer: 'tuple',
+            explanation: 'Tuples are immutable — they cannot be changed after creation. Lists, dicts, and sets are mutable.',
+            order_num: 4
+          },
+          {
+            question_text: "To convert a string '42' to an integer, use ___('42')",
+            question_type: 'fill_blank',
+            options: [],
+            correct_answer: 'int',
+            explanation: 'int() converts strings and floats to integers. float() converts to decimal numbers.',
+            order_num: 5
+          }
+        ]
+      }
+    },
+    {
+      title: 'Web Development Fundamentals',
+      description: 'Build modern websites with HTML, CSS, and JavaScript',
+      category: 'programming',
+      lessons: [
+        { title: 'HTML Crash Course',   video_url: 'https://www.youtube.com/watch?v=qz0aGYrrlhU', order_num: 1, duration_minutes: 60, description: 'Learn the building blocks of every webpage.' },
+        { title: 'CSS Fundamentals',    video_url: 'https://www.youtube.com/watch?v=yfoY53QXEnI', order_num: 2, duration_minutes: 45, description: 'Style your pages with selectors, the box model, and Flexbox.' },
+        { title: 'JavaScript Basics',   video_url: 'https://www.youtube.com/watch?v=hdI2bqOjy3c', order_num: 3, duration_minutes: 55, description: 'Add interactivity with variables, functions, and DOM manipulation.' },
+        { title: 'Responsive Design',   video_url: 'https://www.youtube.com/watch?v=srvUrASNj0s', order_num: 4, duration_minutes: 38, description: 'Use media queries and fluid layouts for any screen size.' },
+        { title: 'Building a Website',  video_url: 'https://www.youtube.com/watch?v=pQN-pnXPaVg', order_num: 5, duration_minutes: 62, description: 'Put it all together and build a complete project.' }
+      ],
+      quiz: {
+        title: 'Web Development Quiz',
+        description: 'Test your HTML, CSS and JavaScript knowledge',
+        time_limit_minutes: 15,
+        passing_score: 70,
+        questions: [
+          {
+            question_text: 'Which HTML tag creates a hyperlink?',
+            question_type: 'mcq',
+            options: [
+              { id: 'a', text: '<a>',    is_correct: true },
+              { id: 'b', text: '<link>', is_correct: false },
+              { id: 'c', text: '<href>', is_correct: false },
+              { id: 'd', text: '<url>',  is_correct: false }
+            ],
+            correct_answer: '<a>',
+            explanation: 'The <a> (anchor) tag creates hyperlinks. The href attribute specifies the destination.',
+            order_num: 1
+          },
+          {
+            question_text: 'CSS stands for Cascading Style Sheets',
+            question_type: 'true_false',
+            options: [],
+            correct_answer: 'True',
+            explanation: 'CSS (Cascading Style Sheets) describes how HTML elements are displayed on screen.',
+            order_num: 2
+          },
+          {
+            question_text: 'In CSS, to make text bold you use font-weight: ___',
+            question_type: 'fill_blank',
+            options: [],
+            correct_answer: 'bold',
+            explanation: 'font-weight: bold makes text bold. You can also use numeric values like 700.',
+            order_num: 3
+          },
+          {
+            question_text: 'Which JavaScript method adds an element to the end of an array?',
+            question_type: 'mcq',
+            options: [
+              { id: 'a', text: 'push()',   is_correct: true },
+              { id: 'b', text: 'pop()',    is_correct: false },
+              { id: 'c', text: 'shift()',  is_correct: false },
+              { id: 'd', text: 'splice()', is_correct: false }
+            ],
+            correct_answer: 'push()',
+            explanation: 'push() adds one or more elements to the end of an array and returns the new length.',
+            order_num: 4
+          },
+          {
+            question_text: 'HTML is a programming language',
+            question_type: 'true_false',
+            options: [],
+            correct_answer: 'False',
+            explanation: 'HTML is a markup language, not a programming language. It structures content but cannot perform logic or calculations.',
+            order_num: 5
+          }
+        ]
+      }
+    },
+    {
+      title: 'Data Structures & Algorithms',
+      description: 'Master fundamental computer science concepts for technical interviews',
+      category: 'programming',
+      lessons: [
+        { title: 'Big O Notation',       video_url: 'https://www.youtube.com/watch?v=Mo4vesaut8g', order_num: 1, duration_minutes: 20, description: 'Analyse algorithm efficiency with Big O.' },
+        { title: 'Arrays & Linked Lists',video_url: 'https://www.youtube.com/watch?v=RBSGKlAvoiM', order_num: 2, duration_minutes: 40, description: 'Understand the two most fundamental data structures.' },
+        { title: 'Stacks & Queues',      video_url: 'https://www.youtube.com/watch?v=wjI1WNcIntg', order_num: 3, duration_minutes: 35, description: 'LIFO and FIFO structures and their real-world uses.' },
+        { title: 'Binary Search',        video_url: 'https://www.youtube.com/watch?v=P3YID7liBug', order_num: 4, duration_minutes: 22, description: 'Efficiently search sorted collections in O(log n).' },
+        { title: 'Sorting Algorithms',   video_url: 'https://www.youtube.com/watch?v=kgBjXUE_Nwc', order_num: 5, duration_minutes: 55, description: 'Compare bubble sort, merge sort, quick sort and more.' }
+      ],
+      quiz: {
+        title: 'DSA Quiz',
+        description: 'Test your knowledge of data structures and algorithms',
+        time_limit_minutes: 15,
+        passing_score: 70,
+        questions: [
+          {
+            question_text: 'What is the time complexity of binary search?',
+            question_type: 'mcq',
+            options: [
+              { id: 'a', text: 'O(n)',      is_correct: false },
+              { id: 'b', text: 'O(log n)',  is_correct: true },
+              { id: 'c', text: 'O(n²)',     is_correct: false },
+              { id: 'd', text: 'O(1)',      is_correct: false }
+            ],
+            correct_answer: 'O(log n)',
+            explanation: 'Binary search halves the search space each step, giving O(log n) — far more efficient than linear O(n) for sorted arrays.',
+            order_num: 1
+          },
+          {
+            question_text: 'A stack follows FIFO order',
+            question_type: 'true_false',
+            options: [],
+            correct_answer: 'False',
+            explanation: 'A stack follows LIFO (Last In, First Out) — like a stack of plates. FIFO is used by queues.',
+            order_num: 2
+          },
+          {
+            question_text: 'The sorting algorithm with average time complexity O(n log n) that uses divide-and-conquer is ___',
+            question_type: 'fill_blank',
+            options: [],
+            correct_answer: 'merge sort',
+            explanation: 'Merge sort divides the array in half recursively then merges sorted halves. Time: O(n log n).',
+            order_num: 3
+          },
+          {
+            question_text: 'Which data structure uses nodes with pointers to next elements?',
+            question_type: 'mcq',
+            options: [
+              { id: 'a', text: 'Array',       is_correct: false },
+              { id: 'b', text: 'Linked List', is_correct: true },
+              { id: 'c', text: 'Stack',       is_correct: false },
+              { id: 'd', text: 'Hash Table',  is_correct: false }
+            ],
+            correct_answer: 'Linked List',
+            explanation: 'Linked lists store elements as nodes where each node holds data and a pointer to the next node.',
+            order_num: 4
+          },
+          {
+            question_text: 'A graph with no cycles is called a ___',
+            question_type: 'fill_blank',
+            options: [],
+            correct_answer: 'tree',
+            explanation: 'A tree is an acyclic connected graph. It has n nodes and exactly n-1 edges.',
+            order_num: 5
+          }
+        ]
+      }
+    },
+    {
+      title: 'Mathematics for Computing',
+      description: 'Essential maths behind computer science: logic, graphs, sets, and probability',
+      category: 'mathematics',
+      lessons: [
+        { title: 'Number Systems',  video_url: 'https://www.youtube.com/watch?v=aHs3GBqvEqs', order_num: 1, duration_minutes: 30, description: 'Binary, octal, decimal, and hexadecimal systems.' },
+        { title: 'Boolean Algebra', video_url: 'https://www.youtube.com/watch?v=RYDiDpW2VkM', order_num: 2, duration_minutes: 25, description: 'Logic gates, truth tables, and simplification.' },
+        { title: 'Set Theory',      video_url: 'https://www.youtube.com/watch?v=tyDKR4FG3Yw', order_num: 3, duration_minutes: 28, description: 'Union, intersection, complements and Venn diagrams.' },
+        { title: 'Graph Theory',    video_url: 'https://www.youtube.com/watch?v=LFKZLXVO-Dg', order_num: 4, duration_minutes: 45, description: 'Vertices, edges, paths, and trees.' },
+        { title: 'Probability Basics', video_url: 'https://www.youtube.com/watch?v=uzkc-qNVoOk', order_num: 5, duration_minutes: 35, description: 'Events, sample spaces, and the addition rule.' }
+      ],
+      quiz: {
+        title: 'Maths for Computing Quiz',
+        description: 'Test your discrete maths knowledge',
+        time_limit_minutes: 15,
+        passing_score: 70,
+        questions: [
+          {
+            question_text: 'In binary, what is 1010 in decimal?',
+            question_type: 'mcq',
+            options: [
+              { id: 'a', text: '8',  is_correct: false },
+              { id: 'b', text: '10', is_correct: true },
+              { id: 'c', text: '12', is_correct: false },
+              { id: 'd', text: '14', is_correct: false }
+            ],
+            correct_answer: '10',
+            explanation: '1010 in binary = 1×8 + 0×4 + 1×2 + 0×1 = 8+2 = 10.',
+            order_num: 1
+          },
+          {
+            question_text: 'In Boolean algebra, A AND NOT(A) always equals 1',
+            question_type: 'true_false',
+            options: [],
+            correct_answer: 'False',
+            explanation: 'A AND NOT(A) = 0 always (a contradiction). A OR NOT(A) = 1 always (a tautology).',
+            order_num: 2
+          },
+          {
+            question_text: 'The number of edges in a complete graph with 4 vertices is ___',
+            question_type: 'fill_blank',
+            options: [],
+            correct_answer: '6',
+            explanation: 'A complete graph Kn has n(n-1)/2 edges. K4 = 4×3/2 = 6 edges.',
+            order_num: 3
+          },
+          {
+            question_text: 'What is the union of sets A={1,2,3} and B={3,4,5}?',
+            question_type: 'mcq',
+            options: [
+              { id: 'a', text: '{1,2,3,4,5}',     is_correct: true },
+              { id: 'b', text: '{3}',              is_correct: false },
+              { id: 'c', text: '{1,2,4,5}',        is_correct: false },
+              { id: 'd', text: '{1,2,3,3,4,5}',    is_correct: false }
+            ],
+            correct_answer: '{1,2,3,4,5}',
+            explanation: 'Union A∪B contains all elements from both sets (no duplicates).',
+            order_num: 4
+          },
+          {
+            question_text: 'P(A) + P(not A) = 1 for any event A',
+            question_type: 'true_false',
+            options: [],
+            correct_answer: 'True',
+            explanation: 'The complement rule: an event either happens or it does not, so probabilities sum to 1.',
+            order_num: 5
+          }
+        ]
+      }
+    },
+    {
+      title: 'Introduction to Machine Learning',
+      description: 'Understand AI fundamentals, supervised learning, neural networks, and model evaluation',
+      category: 'science',
+      lessons: [
+        { title: 'What is ML?',        video_url: 'https://www.youtube.com/watch?v=ukzFI9rgwfU', order_num: 1, duration_minutes: 15, description: 'A plain-English introduction to machine learning concepts.' },
+        { title: 'Linear Regression',  video_url: 'https://www.youtube.com/watch?v=nk2CQITm_eo', order_num: 2, duration_minutes: 40, description: 'Predict continuous values with the simplest ML model.' },
+        { title: 'Classification',     video_url: 'https://www.youtube.com/watch?v=0B5eIE_1vpU', order_num: 3, duration_minutes: 35, description: 'Assign categories using logistic regression and decision trees.' },
+        { title: 'Neural Networks',    video_url: 'https://www.youtube.com/watch?v=aircAruvnKk', order_num: 4, duration_minutes: 20, description: 'How layers of neurons learn from data.' },
+        { title: 'Model Evaluation',   video_url: 'https://www.youtube.com/watch?v=85dtiMz9tSo', order_num: 5, duration_minutes: 30, description: 'Accuracy, precision, recall, and avoiding overfitting.' }
+      ],
+      quiz: {
+        title: 'Machine Learning Quiz',
+        description: 'Test your ML fundamentals',
+        time_limit_minutes: 15,
+        passing_score: 70,
+        questions: [
+          {
+            question_text: 'What type of learning uses labelled training data?',
+            question_type: 'mcq',
+            options: [
+              { id: 'a', text: 'Supervised',     is_correct: true },
+              { id: 'b', text: 'Unsupervised',   is_correct: false },
+              { id: 'c', text: 'Reinforcement',  is_correct: false },
+              { id: 'd', text: 'Semi-supervised',is_correct: false }
+            ],
+            correct_answer: 'Supervised',
+            explanation: 'Supervised learning trains on labelled data (input→output pairs). The model learns to predict outputs for new inputs.',
+            order_num: 1
+          },
+          {
+            question_text: 'A neural network with zero hidden layers is called a perceptron',
+            question_type: 'true_false',
+            options: [],
+            correct_answer: 'True',
+            explanation: 'A perceptron is a single-layer neural network — it maps inputs directly to an output with no hidden layers.',
+            order_num: 2
+          },
+          {
+            question_text: 'The evaluation metric that measures the proportion of correct predictions is called ___',
+            question_type: 'fill_blank',
+            options: [],
+            correct_answer: 'accuracy',
+            explanation: 'Accuracy = correct predictions / total predictions. Useful for balanced datasets.',
+            order_num: 3
+          },
+          {
+            question_text: 'Which algorithm draws a boundary to separate classes with maximum margin?',
+            question_type: 'mcq',
+            options: [
+              { id: 'a', text: 'SVM',           is_correct: true },
+              { id: 'b', text: 'KNN',           is_correct: false },
+              { id: 'c', text: 'Decision Tree', is_correct: false },
+              { id: 'd', text: 'Naive Bayes',   is_correct: false }
+            ],
+            correct_answer: 'SVM',
+            explanation: 'Support Vector Machines find the hyperplane that maximises the margin between classes.',
+            order_num: 4
+          },
+          {
+            question_text: 'Overfitting occurs when a model performs well on ___ data but poorly on new data',
+            question_type: 'fill_blank',
+            options: [],
+            correct_answer: 'training',
+            explanation: 'Overfitting means the model memorises training data including noise, but fails to generalise.',
+            order_num: 5
+          }
+        ]
+      }
+    },
+    {
+      title: 'Business & Entrepreneurship',
+      description: 'Launch and grow a business — from market research to scaling up',
+      category: 'business',
+      lessons: [
+        { title: 'Starting a Business', video_url: 'https://www.youtube.com/watch?v=g6GJpvj-Lp4', order_num: 1, duration_minutes: 25, description: 'Legal structures, business plans, and the entrepreneurial mindset.' },
+        { title: 'Market Research',     video_url: 'https://www.youtube.com/watch?v=K7MxcOXZvAE', order_num: 2, duration_minutes: 30, description: 'Understand your customers and validate demand before building.' },
+        { title: 'Financial Basics',    video_url: 'https://www.youtube.com/watch?v=WEDIj9JBTC8', order_num: 3, duration_minutes: 35, description: 'Revenue, costs, margins, cash flow and break-even analysis.' },
+        { title: 'Marketing Strategy',  video_url: 'https://www.youtube.com/watch?v=vGraOlZNyzU', order_num: 4, duration_minutes: 28, description: 'Reach customers with the 4 Ps and digital channels.' },
+        { title: 'Scaling Up',          video_url: 'https://www.youtube.com/watch?v=Fdi1-_NZHDE', order_num: 5, duration_minutes: 22, description: 'Systems, hiring, and growth strategies for expanding your business.' }
+      ],
+      quiz: {
+        title: 'Business & Entrepreneurship Quiz',
+        description: 'Test your business knowledge',
+        time_limit_minutes: 15,
+        passing_score: 70,
+        questions: [
+          {
+            question_text: 'What does USP stand for in business?',
+            question_type: 'mcq',
+            options: [
+              { id: 'a', text: 'Unique Selling Proposition', is_correct: true },
+              { id: 'b', text: 'Universal Sales Plan',       is_correct: false },
+              { id: 'c', text: 'Unified Service Protocol',   is_correct: false },
+              { id: 'd', text: 'User Satisfaction Point',    is_correct: false }
+            ],
+            correct_answer: 'Unique Selling Proposition',
+            explanation: 'USP is what differentiates your product from competitors — the unique value you offer customers.',
+            order_num: 1
+          },
+          {
+            question_text: 'Cash flow and profit mean the same thing',
+            question_type: 'true_false',
+            options: [],
+            correct_answer: 'False',
+            explanation: 'Profit is revenue minus costs. Cash flow is actual money moving in/out. A profitable business can still fail from poor cash flow.',
+            order_num: 2
+          },
+          {
+            question_text: 'The 4 Ps of marketing are Product, Price, Place, and ___',
+            question_type: 'fill_blank',
+            options: [],
+            correct_answer: 'Promotion',
+            explanation: 'The Marketing Mix: Product (what you sell), Price (cost), Place (distribution), Promotion (how you reach customers).',
+            order_num: 3
+          },
+          {
+            question_text: 'What is the term for researching customers\' needs before launching a product?',
+            question_type: 'mcq',
+            options: [
+              { id: 'a', text: 'Market Research', is_correct: true },
+              { id: 'b', text: 'Branding',        is_correct: false },
+              { id: 'c', text: 'Monetisation',    is_correct: false },
+              { id: 'd', text: 'Pivoting',        is_correct: false }
+            ],
+            correct_answer: 'Market Research',
+            explanation: 'Market research involves gathering data about target customers, competitors, and demand before product launch.',
+            order_num: 4
+          },
+          {
+            question_text: 'A startup and a small business are always the same thing',
+            question_type: 'true_false',
+            options: [],
+            correct_answer: 'False',
+            explanation: 'Startups aim for rapid growth and scalability (often tech-based). Small businesses typically aim for stable, local operations.',
+            order_num: 5
+          }
+        ]
+      }
+    }
+  ];
+
+  // ── 5. Insert courses, lessons, quizzes, questions ─────────────────────────
+  console.log('\nInserting courses, lessons, quizzes, and questions...');
+
+  for (const courseData of coursesData) {
+    // Insert course
+    const { data: course, error: cErr } = await supabase
+      .from('courses')
+      .insert({
+        title: courseData.title,
+        description: courseData.description,
+        category: courseData.category,
+        instructor_id: instructor.id,
+        is_published: true,
+        thumbnail_url: ''
+      })
+      .select('id, title')
+      .single();
+
+    if (cErr) throw new Error(`Course insert failed (${courseData.title}): ${cErr.message}`);
+    console.log(`  Course: "${course.title}" (${course.id})`);
+
+    // Insert lessons
+    const lessonRows = courseData.lessons.map(l => ({
+      course_id: course.id,
+      title: l.title,
+      description: l.description,
+      video_url: l.video_url,
+      order_num: l.order_num,
+      duration_minutes: l.duration_minutes
+    }));
+
+    const { error: lErr } = await supabase.from('lessons').insert(lessonRows);
+    if (lErr) throw new Error(`Lessons insert failed (${course.title}): ${lErr.message}`);
+    console.log(`    + ${lessonRows.length} lessons`);
+
+    // Insert quiz
+    const { data: quiz, error: qErr } = await supabase
+      .from('quizzes')
+      .insert({
+        course_id: course.id,
+        title: courseData.quiz.title,
+        description: courseData.quiz.description,
+        time_limit_minutes: courseData.quiz.time_limit_minutes,
+        passing_score: courseData.quiz.passing_score
+      })
+      .select('id')
+      .single();
+
+    if (qErr) throw new Error(`Quiz insert failed (${course.title}): ${qErr.message}`);
+
+    // Insert questions
+    const questionRows = courseData.quiz.questions.map(q => ({
+      quiz_id: quiz.id,
+      question_text: q.question_text,
+      question_type: q.question_type,
+      options: q.options,
+      correct_answer: q.correct_answer,
+      explanation: q.explanation,
+      order_num: q.order_num
+    }));
+
+    const { error: qqErr } = await supabase.from('questions').insert(questionRows);
+    if (qqErr) throw new Error(`Questions insert failed (${course.title}): ${qqErr.message}`);
+    console.log(`    + 1 quiz with ${questionRows.length} questions`);
+  }
+
+  // ── 6. Enroll student1 in first 3 courses ─────────────────────────────────
+  console.log('\nEnrolling demo student in first 3 courses...');
+
+  const { data: allCourses } = await supabase
+    .from('courses')
+    .select('id, title')
+    .eq('instructor_id', instructor.id)
+    .order('created_at', { ascending: true })
+    .limit(3);
+
+  for (const c of (allCourses || [])) {
+    await supabase.from('enrollments').insert({ student_id: student1.id, course_id: c.id });
+    await supabase.from('progress').insert({
+      student_id: student1.id,
+      course_id: c.id,
+      completed_lessons: [],
+      completion_percentage: 0,
+      total_time_spent_minutes: 0
+    });
+    console.log(`  Enrolled in "${c.title}"`);
+  }
+
+  // ── 7. Summary ─────────────────────────────────────────────────────────────
+  const { count: courseCount } = await supabase.from('courses').select('id', { count: 'exact', head: true });
+  const { count: lessonCount } = await supabase.from('lessons').select('id', { count: 'exact', head: true });
+  const { count: quizCount }   = await supabase.from('quizzes').select('id', { count: 'exact', head: true });
+  const { count: qCount }      = await supabase.from('questions').select('id', { count: 'exact', head: true });
+  const { count: userCount }   = await supabase.from('users').select('id', { count: 'exact', head: true });
+
+  console.log('\n=== Seed Complete ===');
+  console.log(`  Users:     ${userCount}`);
+  console.log(`  Courses:   ${courseCount}`);
+  console.log(`  Lessons:   ${lessonCount}`);
+  console.log(`  Quizzes:   ${quizCount}`);
+  console.log(`  Questions: ${qCount}`);
+  console.log('\nDemo login credentials:');
+  console.log('  Instructor: instructor@studybuddy.com / password123');
+  console.log('  Student:    student@studybuddy.com    / password123');
+}
+
+seed().catch(err => {
+  console.error('\nSeed failed:', err.message);
+  process.exit(1);
+});

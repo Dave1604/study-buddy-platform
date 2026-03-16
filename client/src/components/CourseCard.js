@@ -81,11 +81,11 @@ const CourseCard = ({ course }) => {
           <div className="course-meta">
             <div className="meta-item">
               <BookOpen size={16} />
-              <span>{(course.lessons && course.lessons.length) || 0} lessons</span>
+              <span>{course.lesson_count || (course.lessons && course.lessons.length) || 0} lessons</span>
             </div>
             <div className="meta-item">
               <Users size={16} />
-              <span>{(Array.isArray(course.enrolledStudents) ? course.enrolledStudents.length : (course.totalEnrollments || 0))} students</span>
+              <span>{course.enrolled_count || (Array.isArray(course.enrolledStudents) ? course.enrolledStudents.length : (course.totalEnrollments || 0))} students</span>
             </div>
             <div className="meta-item">
               <Clock size={16} />

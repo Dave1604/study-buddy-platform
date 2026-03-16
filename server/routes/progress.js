@@ -87,7 +87,28 @@ router.get('/dashboard', async (req, res) => {
       milestones.push({ id: 'm6', label: 'Dedicated Learner', description: 'Enrolled in 3+ courses!', icon: '📚', unlocked: true });
     }
 
+    // Build categoryProgress map { category: { total, completed } }
+    const categoryProgress = {};
+    (courses || []).forEach(c => {
+      const cat = c.category || 'other';
+      if (!categoryProgress[cat]) categoryProgress[cat] = { total: 0, completed: 0 };
+      categoryProgress[cat].total++;
+      const prog = (progressRows || []).find(p => p.course_id === c.id);
+      if (prog && prog.completion_percentage === 100) categoryProgress[cat].completed++;
+    });
+
+    // recentActivity: last accessed courses
+    const recentActivity = (courseProgress || [])
+      .sort((a, b) => (b.last_accessed || 0) > (a.last_accessed || 0) ? 1 : -1)
+      .slice(0, 5)
+      .map(p => ({
+        course: { _id: p.course_id, title: p.course_title },
+        completionPercentage: p.completion_percentage,
+        lastAccessed: new Date().toISOString()
+      }));
+
     const data = {
+      // Legacy fields (used by backend consumers)
       stats: {
         total_courses: totalCourses,
         completed_courses: completedCourses,
@@ -97,7 +118,19 @@ router.get('/dashboard', async (req, res) => {
       },
       quiz_performance: quizPerformance,
       course_progress: courseProgress,
-      milestones
+      milestones,
+      // Dashboard.js expected fields
+      overview: {
+        totalCourses,
+        completedCourses,
+        inProgressCourses: totalCourses - completedCourses,
+        averageScore: avgScore,
+        totalTimeSpent: Math.round(totalHours * 60),
+        totalQuizzes: (attempts || []).length
+      },
+      recentActivity,
+      quizPerformance,
+      categoryProgress
     };
 
     res.status(200).json({ status: 'success', data });

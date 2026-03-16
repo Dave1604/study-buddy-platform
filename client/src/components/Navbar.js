@@ -124,7 +124,8 @@ const Navbar = () => {
 
               {/* Mobile hamburger */}
               <button
-                className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                className="md:hidden p-2.5 rounded-lg hover:bg-gray-100 transition-colors"
+                style={{ minWidth: '44px', minHeight: '44px' }}
                 onClick={() => setMobileOpen(!mobileOpen)}
                 aria-label="Toggle menu"
               >

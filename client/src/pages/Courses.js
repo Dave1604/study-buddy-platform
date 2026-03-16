@@ -94,12 +94,12 @@ const Courses = () => {
               className="input pl-10"
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-0.5">
             <Filter className="h-4 w-4 text-gray-400 flex-shrink-0" />
             <select
               value={filters.category}
               onChange={(e) => handleFilterChange('category', e.target.value)}
-              className="input w-auto min-w-[140px]"
+              className="input w-auto min-w-[140px] flex-shrink-0"
             >
               <option value="">All Categories</option>
               <option value="programming">Programming</option>
@@ -113,7 +113,7 @@ const Courses = () => {
             <select
               value={filters.level}
               onChange={(e) => handleFilterChange('level', e.target.value)}
-              className="input w-auto min-w-[130px]"
+              className="input w-auto min-w-[130px] flex-shrink-0"
             >
               <option value="">All Levels</option>
               <option value="beginner">Beginner</option>
@@ -137,8 +137,10 @@ const Courses = () => {
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                  {enrolledCourses.map((course) => (
-                    <CourseCard key={course._id} course={course} isEnrolled={true} />
+                  {enrolledCourses.map((course, i) => (
+                    <div key={course._id} className="hover-lift will-animate animate-fade-up" style={{ animationDelay: `${i * 60}ms` }}>
+                      <CourseCard course={course} isEnrolled={true} />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -156,8 +158,10 @@ const Courses = () => {
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                  {courses.map((course) => (
-                    <CourseCard key={course._id} course={course} isEnrolled={false} />
+                  {courses.map((course, i) => (
+                    <div key={course._id} className="hover-lift will-animate animate-fade-up" style={{ animationDelay: `${i * 60}ms` }}>
+                      <CourseCard course={course} isEnrolled={false} />
+                    </div>
                   ))}
                 </div>
               </div>

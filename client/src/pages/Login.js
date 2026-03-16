@@ -154,19 +154,19 @@ const Login = () => {
             <div className="space-y-1.5">
               <button
                 type="button"
-                onClick={() => fillDemo('student@example.com', 'password123')}
+                onClick={() => fillDemo('student@studybuddy.com', 'password123')}
                 className="w-full text-left p-2.5 bg-white rounded-xl border border-amber-100 hover:border-amber-300 transition-colors"
               >
                 <p className="text-xs font-semibold text-gray-700">Student account</p>
-                <p className="text-xs text-gray-400 font-mono">student@example.com</p>
+                <p className="text-xs text-gray-400 font-mono">student@studybuddy.com</p>
               </button>
               <button
                 type="button"
-                onClick={() => fillDemo('instructor@example.com', 'password123')}
+                onClick={() => fillDemo('instructor@studybuddy.com', 'password123')}
                 className="w-full text-left p-2.5 bg-white rounded-xl border border-amber-100 hover:border-amber-300 transition-colors"
               >
                 <p className="text-xs font-semibold text-gray-700">Instructor account</p>
-                <p className="text-xs text-gray-400 font-mono">instructor@example.com</p>
+                <p className="text-xs text-gray-400 font-mono">instructor@studybuddy.com</p>
               </button>
             </div>
             <p className="text-xs text-amber-600 mt-2 text-center">Click an account to fill the form</p>

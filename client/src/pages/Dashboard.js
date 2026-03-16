@@ -22,7 +22,7 @@ const StatCard = ({ icon, value, label, detail, iconBg, delay = 0 }) => {
   return (
     <div
       ref={ref}
-      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4 will-animate animate-fade-up"
+      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4 will-animate animate-fade-up hover-lift"
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
@@ -67,7 +67,7 @@ const Dashboard = () => {
   if (!dashboardData) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 text-white">
+        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 animate-gradient text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <h1 className="text-3xl font-extrabold tracking-tight">My Dashboard</h1>
           </div>
@@ -93,7 +93,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Dark header banner */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 text-white">
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 animate-gradient text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <p className="text-slate-400 text-sm mb-1">Welcome back,</p>
           <h1 className="text-3xl font-extrabold tracking-tight text-white">{displayName}</h1>

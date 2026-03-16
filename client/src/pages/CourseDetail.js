@@ -264,12 +264,13 @@ const CourseDetail = () => {
               </div>
 
               {!isEnrolled && (
-                <button 
-                  onClick={handleEnroll} 
-                  className="btn btn-primary btn-large"
+                <button
+                  onClick={handleEnroll}
+                  className="btn btn-primary btn-large btn-shimmer hover-lift"
+                  style={{minHeight: '48px'}}
                   disabled={enrolling}
                 >
-                  {enrolling ? 'Enrolling...' : 'Enroll in Course'}
+                  {enrolling ? 'Enrolling...' : 'Enroll in Course — Free'}
                 </button>
               )}
 
@@ -343,7 +344,7 @@ const CourseDetail = () => {
             )}
 
             {activeTab === 'lessons' && (
-              <div className="lessons-tab">
+              <div className="lessons-tab" style={{maxHeight: '70vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch'}}>
                 {course.lessons.map((lesson, index) => {
                   const isCompleted = progress?.lessonsProgress.find(
                     lp => lp.lessonId.toString() === lesson._id.toString()
@@ -367,23 +368,24 @@ const CourseDetail = () => {
                         <p>{lesson.content.substring(0, 150)}...</p>
                         
                         {isEnrolled && videoId && (
-                          <div className="lesson-video" style={{marginTop: '16px'}}>
+                          <div className="lesson-video" style={{marginTop: ‘16px’}}>
                             {unavailableMap[lesson._id] && (
-                              <div className="alert alert-danger" style={{marginBottom: '8px'}}>
+                              <div className="alert-error" style={{marginBottom: ‘8px’}}>
                                 Video unavailable. We’ll replace this link soon.
                               </div>
                             )}
-                            <iframe
-                              width="100%"
-                              height="315"
-                              id={`player-${lesson._id}`}
-                              src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1`}
-                              title={lesson.title}
-                              frameBorder="0"
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                              allowFullScreen
-                              style={{borderRadius: '8px'}}
-                            ></iframe>
+                            {/* 16:9 aspect ratio container */}
+                            <div style={{position: ‘relative’, paddingBottom: ‘56.25%’, height: 0, overflow: ‘hidden’, borderRadius: ‘12px’}}>
+                              <iframe
+                                id={`player-${lesson._id}`}
+                                src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1`}
+                                title={lesson.title}
+                                frameBorder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                                style={{position: ‘absolute’, top: 0, left: 0, width: ‘100%’, height: ‘100%’, borderRadius: ‘12px’}}
+                              ></iframe>
+                            </div>
                           </div>
                         )}
                         

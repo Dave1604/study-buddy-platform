@@ -83,7 +83,7 @@ router.get('/:id', async (req, res) => {
       );
       return {
         ...q,
-        options: q.question_type === 'multiple-choice' ? shuffle(sanitisedOptions) : sanitisedOptions
+        options: q.question_type === 'mcq' ? shuffle(sanitisedOptions) : sanitisedOptions
       };
     });
 
@@ -158,13 +158,16 @@ router.post('/:id/submit', async (req, res) => {
       const submitted = (answers[q.id] || '').toString().trim();
       let isCorrect = false;
 
-      if (q.question_type === 'multiple-choice') {
+      if (q.question_type === 'mcq') {
         const correctOpt = (q.options || []).find(o => o.is_correct);
-        const correctText = correctOpt ? (correctOpt.text || '') : (q.correct_answer || '');
-        isCorrect = submitted.toLowerCase() === correctText.toLowerCase();
-      } else if (q.question_type === 'true-false') {
+        const correctId = correctOpt ? correctOpt.id : null;
+        // submitted may be option id or option text
+        isCorrect = submitted === correctId ||
+          submitted.toLowerCase() === (correctOpt?.text || '').toLowerCase() ||
+          submitted.toLowerCase() === (q.correct_answer || '').toLowerCase();
+      } else if (q.question_type === 'true_false') {
         isCorrect = submitted.toLowerCase() === (q.correct_answer || '').toLowerCase();
-      } else if (q.question_type === 'fill-in-blank') {
+      } else if (q.question_type === 'fill_blank') {
         isCorrect = submitted.toLowerCase() === (q.correct_answer || '').toLowerCase();
       }
 
@@ -228,7 +231,7 @@ router.post('/:id/questions', authorize('instructor', 'admin'), async (req, res)
       .insert({
         quiz_id: req.params.id,
         question_text,
-        question_type: question_type || 'multiple-choice',
+        question_type: question_type || 'mcq',
         options: options || [],
         correct_answer: correct_answer || '',
         explanation: explanation || '',

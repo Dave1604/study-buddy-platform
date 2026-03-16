@@ -19,7 +19,7 @@ const StatCard = ({ icon, value, label, iconBg, delay = 0 }) => {
   return (
     <div
       ref={ref}
-      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4 will-animate animate-fade-up"
+      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4 will-animate animate-fade-up hover-lift"
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
@@ -50,8 +50,9 @@ const InstructorDashboard = () => {
   const fetchInstructorData = useCallback(async () => {
     try {
       const coursesRes = await courseService.getAllCourses();
-      const instructorCourses = coursesRes.data.data.courses.filter(
-        course => course.instructor._id === user.id || course.instructor === user.id
+      const allCourses = coursesRes.data?.data?.courses || [];
+      const instructorCourses = allCourses.filter(
+        course => (course.instructor?._id || course.instructor) === user.id
       );
       setCourses(instructorCourses);
 
@@ -111,7 +112,7 @@ const InstructorDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Dark header */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 text-white">
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 animate-gradient text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -182,7 +183,7 @@ const InstructorDashboard = () => {
             ) : (
               <div className="space-y-3">
                 {courses.map(course => (
-                  <div key={course._id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 transition-colors group">
+                  <div key={course._id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 transition-colors group hover-lift">
                     {course.thumbnail && (
                       <img src={course.thumbnail} alt={course.title} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
                     )}

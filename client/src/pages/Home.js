@@ -112,8 +112,9 @@ const Home = () => {
       {/* Hero */}
       <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 text-white overflow-hidden">
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute -top-40 -right-40 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-3xl" />
-          <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl" />
+          <div className="absolute -top-40 -right-40 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-3xl orb-float" />
+          <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-orange-500/8 rounded-full blur-3xl orb-float-rev" />
+          <div className="absolute top-1/2 left-1/3 w-96 h-96 bg-violet-500/5 rounded-full blur-3xl orb-float-slow" />
         </div>
         <div ref={heroRef} className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 lg:pt-28 lg:pb-32">
           <div className="max-w-3xl">
@@ -136,7 +137,7 @@ const Home = () => {
                   </Link>
                 ) : (
                   <>
-                    <Link to="/register" className="btn-primary-lg group">
+                    <Link to="/register" className="btn-primary-lg btn-shimmer group">
                       Start learning free <ArrowRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-1" />
                     </Link>
                     <Link to="/courses" className="btn-outline-white group">
@@ -154,6 +155,15 @@ const Home = () => {
               <HeroStat end={4} suffix=".8★" label="Rating" delay={200} />
               <div className="w-px h-10 bg-white/10" />
               <HeroStat end={95} suffix="%" label="Satisfaction" delay={300} />
+            </div>
+
+            {/* Scrolling tech ticker */}
+            <div className="ticker-wrap mt-8 opacity-30">
+              <div className="ticker-content gap-8 text-xs text-slate-400 font-medium">
+                {['Python', 'JavaScript', 'React', 'Data Science', 'Machine Learning', 'Web Dev', 'Algorithms', 'Mathematics', 'Business', 'Python', 'JavaScript', 'React', 'Data Science', 'Machine Learning', 'Web Dev', 'Algorithms', 'Mathematics', 'Business'].map((t, i) => (
+                  <span key={i} className="mx-6">• {t}</span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
