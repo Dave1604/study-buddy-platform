@@ -83,7 +83,7 @@ const Dashboard = () => {
     );
   }
 
-  const { overview, recentActivity, quizPerformance, categoryProgress } = dashboardData;
+  const { overview, recentActivity, quizPerformance, categoryProgress, milestones } = dashboardData;
 
   const categoryData = Object.entries(categoryProgress || {}).map(([name, data]) => ({
     name: name.charAt(0).toUpperCase() + name.slice(1),
@@ -216,6 +216,25 @@ const Dashboard = () => {
             )}
           </div>
         </div>
+
+        {/* Milestones */}
+        {milestones && milestones.length > 0 && (
+          <div className="card mb-6">
+            <h2 className="text-base font-bold text-gray-900 mb-4">Achievements</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {milestones.map(m => (
+                <div
+                  key={m.id}
+                  className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all text-center ${m.unlocked ? 'border-emerald-200 bg-emerald-50' : 'border-gray-100 bg-gray-50 opacity-40'}`}
+                >
+                  <span className="text-2xl">{m.icon}</span>
+                  <p className="text-xs font-bold text-gray-800 leading-tight">{m.label}</p>
+                  <p className="text-xs text-gray-500 leading-tight">{m.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Recent Activity */}
         <div className="card">
