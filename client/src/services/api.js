@@ -39,6 +39,7 @@ api.interceptors.response.use(
 // Course Services
 export const courseService = {
   getAllCourses: (params) => api.get('/courses', { params }),
+  getEnrolledCourses: () => api.get('/courses/enrolled'),
   getCourse: (id) => api.get(`/courses/${id}`),
   createCourse: (data) => api.post('/courses', data),
   updateCourse: (id, data) => api.put(`/courses/${id}`, data),

@@ -4,9 +4,10 @@ import { Clock, Users, BookOpen, TrendingUp } from 'lucide-react';
 import './CourseCard.css';
 
 const CourseCard = ({ course }) => {
-  const totalMinutes = (course.totalDuration && Number.isFinite(course.totalDuration))
-    ? Math.max(0, Math.round(course.totalDuration))
-    : Math.max(0, Math.round((course.lessons || []).reduce((sum, l) => sum + (Number(l.duration) || 0), 0)));
+  const totalMinutes = Math.max(0, Math.round(
+    course.total_duration_minutes || course.totalDuration ||
+    (course.lessons || []).reduce((sum, l) => sum + (Number(l.duration) || 0), 0)
+  ));
 
   const formatTotal = (minutes) => {
     const hrs = Math.floor((minutes || 0) / 60);
@@ -36,7 +37,7 @@ const CourseCard = ({ course }) => {
   };
 
   return (
-    <Link to={`/courses/${course._id}`} className="course-card-link">
+    <Link to={`/courses/${course._id || course.id}`} className="course-card-link">
       <div className="course-card">
         <div 
           className="course-thumbnail"
@@ -67,15 +68,15 @@ const CourseCard = ({ course }) => {
           
           <div className="course-instructor">
             <div className="instructor-avatar">
-              {course.instructor?.avatar ? (
-                <img src={course.instructor.avatar} alt={course.instructor.firstName} />
+              {course.instructor?.avatar_url ? (
+                <img src={course.instructor.avatar_url} alt={course.instructor.name} />
               ) : (
                 <div className="avatar-placeholder">
-                  {course.instructor?.firstName?.charAt(0)}{course.instructor?.lastName?.charAt(0)}
+                  {(course.instructor?.name || 'I').charAt(0).toUpperCase()}
                 </div>
               )}
             </div>
-            <span>{course.instructor?.firstName} {course.instructor?.lastName}</span>
+            <span>{course.instructor?.name || 'Instructor'}</span>
           </div>
           
           <div className="course-meta">

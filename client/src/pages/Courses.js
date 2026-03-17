@@ -18,37 +18,18 @@ const Courses = () => {
       const response = await courseService.getAllCourses(filters);
       const allCourses = response.data.data.courses;
 
-      if (user) {
-        if (user.role === 'instructor') {
-          const myCourses = allCourses.filter(c =>
-            ((c.instructor && (c.instructor._id || c.instructor)) + '') === ((user._id || user.id) + '')
-          );
-          setCourses(myCourses);
+      if (user && user.role === 'student') {
+        // Fetch enrolled courses separately using the dedicated endpoint
+        let enrolledIds = new Set();
+        try {
+          const enrolledRes = await courseService.getEnrolledCourses();
+          const enrolled = enrolledRes.data.data.courses || [];
+          enrolled.forEach(c => enrolledIds.add(c.id));
+          setEnrolledCourses(enrolled);
+        } catch (_) {
           setEnrolledCourses([]);
-          setLoading(false);
-          return;
         }
-
-        const userId = ((user._id || user.id) || '').toString();
-        const enrolledIds = Array.isArray(user.enrolledCourses)
-          ? user.enrolledCourses
-              .map(c => (c && (c._id || c.id)) ? (c._id || c.id).toString() : (c ? String(c) : null))
-              .filter(Boolean)
-          : [];
-        const enrolledIdSet = new Set(enrolledIds);
-
-        const isUserInCourse = (course) => {
-          const courseIdStr = ((course._id || course.id) || '').toString();
-          const byIds = enrolledIdSet.has(courseIdStr);
-          const byStudents = Array.isArray(course.enrolledStudents) && course.enrolledStudents.some(s => {
-            const sid = (s && (s._id || s.id)) ? (s._id || s.id).toString() : (s ? String(s) : '');
-            return sid === userId;
-          });
-          return byStudents || byIds;
-        };
-
-        setEnrolledCourses(allCourses.filter(isUserInCourse));
-        setCourses(allCourses.filter(c => !isUserInCourse(c)));
+        setCourses(allCourses.filter(c => !enrolledIds.has(c.id)));
       } else {
         setCourses(allCourses);
         setEnrolledCourses([]);
@@ -58,7 +39,7 @@ const Courses = () => {
     } finally {
       setLoading(false);
     }
-  }, [filters, user]);
+  }, [filters, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { fetchCourses(); }, [fetchCourses]);
 
@@ -138,7 +119,7 @@ const Courses = () => {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                   {enrolledCourses.map((course, i) => (
-                    <div key={course._id} className="hover-lift will-animate animate-fade-up" style={{ animationDelay: `${i * 60}ms` }}>
+                    <div key={course._id || course.id} className="hover-lift will-animate animate-fade-up" style={{ animationDelay: `${i * 60}ms` }}>
                       <CourseCard course={course} isEnrolled={true} />
                     </div>
                   ))}
@@ -159,7 +140,7 @@ const Courses = () => {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                   {courses.map((course, i) => (
-                    <div key={course._id} className="hover-lift will-animate animate-fade-up" style={{ animationDelay: `${i * 60}ms` }}>
+                    <div key={course._id || course.id} className="hover-lift will-animate animate-fade-up" style={{ animationDelay: `${i * 60}ms` }}>
                       <CourseCard course={course} isEnrolled={false} />
                     </div>
                   ))}

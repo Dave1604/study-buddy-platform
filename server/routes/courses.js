@@ -65,7 +65,7 @@ router.get('/', async (req, res) => {
     let query = supabase
       .from('courses')
       .select(`
-        id, title, description, category, instructor_id,
+        id, title, description, category, level, instructor_id,
         thumbnail_url, is_published, created_at,
         instructor:users!courses_instructor_id_fkey(id, name, avatar_url)
       `)
@@ -82,7 +82,7 @@ router.get('/', async (req, res) => {
     const courseIds = (courses || []).map(c => c.id);
     const [{ data: lessons }, { data: enrollments }] = await Promise.all([
       courseIds.length
-        ? supabase.from('lessons').select('course_id').in('course_id', courseIds)
+        ? supabase.from('lessons').select('course_id, duration_minutes').in('course_id', courseIds)
         : Promise.resolve({ data: [] }),
       courseIds.length
         ? supabase.from('enrollments').select('course_id').in('course_id', courseIds)
@@ -90,7 +90,11 @@ router.get('/', async (req, res) => {
     ]);
 
     const lessonCount = {};
-    (lessons || []).forEach(l => { lessonCount[l.course_id] = (lessonCount[l.course_id] || 0) + 1; });
+    const durationByCourse = {};
+    (lessons || []).forEach(l => {
+      lessonCount[l.course_id] = (lessonCount[l.course_id] || 0) + 1;
+      durationByCourse[l.course_id] = (durationByCourse[l.course_id] || 0) + (l.duration_minutes || 0);
+    });
     const enrollCount = {};
     (enrollments || []).forEach(e => { enrollCount[e.course_id] = (enrollCount[e.course_id] || 0) + 1; });
 
@@ -98,7 +102,8 @@ router.get('/', async (req, res) => {
       ...c,
       thumbnail: c.thumbnail_url,
       lesson_count: lessonCount[c.id] || 0,
-      enrolled_count: enrollCount[c.id] || 0
+      enrolled_count: enrollCount[c.id] || 0,
+      total_duration_minutes: durationByCourse[c.id] || 0
     }));
 
     res.status(200).json({
@@ -119,7 +124,7 @@ router.get('/instructor', protect, authorize('instructor', 'admin'), async (req,
     const { data: courses, error } = await supabase
       .from('courses')
       .select(`
-        id, title, description, category, instructor_id,
+        id, title, description, category, level, instructor_id,
         thumbnail_url, is_published, created_at, updated_at,
         instructor:users!courses_instructor_id_fkey(id, name, avatar_url)
       `)
@@ -131,7 +136,7 @@ router.get('/instructor', protect, authorize('instructor', 'admin'), async (req,
     const courseIds = (courses || []).map(c => c.id);
     const [{ data: lessons }, { data: enrollments }] = await Promise.all([
       courseIds.length
-        ? supabase.from('lessons').select('course_id').in('course_id', courseIds)
+        ? supabase.from('lessons').select('course_id, duration_minutes').in('course_id', courseIds)
         : Promise.resolve({ data: [] }),
       courseIds.length
         ? supabase.from('enrollments').select('course_id').in('course_id', courseIds)
@@ -139,7 +144,11 @@ router.get('/instructor', protect, authorize('instructor', 'admin'), async (req,
     ]);
 
     const lessonCount = {};
-    (lessons || []).forEach(l => { lessonCount[l.course_id] = (lessonCount[l.course_id] || 0) + 1; });
+    const durationByCourse = {};
+    (lessons || []).forEach(l => {
+      lessonCount[l.course_id] = (lessonCount[l.course_id] || 0) + 1;
+      durationByCourse[l.course_id] = (durationByCourse[l.course_id] || 0) + (l.duration_minutes || 0);
+    });
     const enrollCount = {};
     (enrollments || []).forEach(e => { enrollCount[e.course_id] = (enrollCount[e.course_id] || 0) + 1; });
 
@@ -147,7 +156,8 @@ router.get('/instructor', protect, authorize('instructor', 'admin'), async (req,
       ...c,
       thumbnail: c.thumbnail_url,
       lesson_count: lessonCount[c.id] || 0,
-      enrolled_count: enrollCount[c.id] || 0
+      enrolled_count: enrollCount[c.id] || 0,
+      total_duration_minutes: durationByCourse[c.id] || 0
     }));
 
     res.status(200).json({
@@ -180,21 +190,29 @@ router.get('/enrolled', protect, async (req, res) => {
     const { data: courses, error: cErr } = await supabase
       .from('courses')
       .select(`
-        id, title, description, category, thumbnail_url, is_published, created_at,
+        id, title, description, category, level, thumbnail_url, is_published, created_at,
         instructor:users!courses_instructor_id_fkey(id, name, avatar_url)
       `)
       .in('id', courseIds);
     if (cErr) throw cErr;
 
-    // Get progress
-    const { data: progressRows } = await supabase
-      .from('progress')
-      .select('course_id, completion_percentage')
-      .eq('student_id', req.user.id)
-      .in('course_id', courseIds);
+    // Get lessons (for count + duration), progress, enrollment counts
+    const [{ data: lessons }, { data: progressRows }, { data: enrollments2 }] = await Promise.all([
+      supabase.from('lessons').select('course_id, duration_minutes').in('course_id', courseIds),
+      supabase.from('progress').select('course_id, completion_percentage').eq('student_id', req.user.id).in('course_id', courseIds),
+      supabase.from('enrollments').select('course_id').in('course_id', courseIds)
+    ]);
 
+    const lessonCount = {};
+    const durationByCourse = {};
+    (lessons || []).forEach(l => {
+      lessonCount[l.course_id] = (lessonCount[l.course_id] || 0) + 1;
+      durationByCourse[l.course_id] = (durationByCourse[l.course_id] || 0) + (l.duration_minutes || 0);
+    });
     const progressMap = {};
     (progressRows || []).forEach(p => { progressMap[p.course_id] = p.completion_percentage; });
+    const enrollCount = {};
+    (enrollments2 || []).forEach(e => { enrollCount[e.course_id] = (enrollCount[e.course_id] || 0) + 1; });
 
     const enrolledAtMap = {};
     (enrollments || []).forEach(e => { enrolledAtMap[e.course_id] = e.enrolled_at; });
@@ -203,7 +221,10 @@ router.get('/enrolled', protect, async (req, res) => {
       ...c,
       thumbnail: c.thumbnail_url,
       enrolled_at: enrolledAtMap[c.id],
-      completion_percentage: progressMap[c.id] || 0
+      completion_percentage: progressMap[c.id] || 0,
+      lesson_count: lessonCount[c.id] || 0,
+      enrolled_count: enrollCount[c.id] || 0,
+      total_duration_minutes: durationByCourse[c.id] || 0
     }));
 
     res.status(200).json({
@@ -224,8 +245,9 @@ router.get('/:id', async (req, res) => {
     const { data: course, error } = await supabase
       .from('courses')
       .select(`
-        id, title, description, category, instructor_id,
+        id, title, description, category, level, instructor_id,
         thumbnail_url, is_published, created_at, updated_at,
+        learning_objectives, prerequisites,
         instructor:users!courses_instructor_id_fkey(id, name, avatar_url)
       `)
       .eq('id', req.params.id)
@@ -238,14 +260,20 @@ router.get('/:id', async (req, res) => {
     // Get lessons
     const { data: lessons } = await supabase
       .from('lessons')
-      .select('id, course_id, title, description, video_url, order_num, duration_minutes')
+      .select('id, course_id, title, description, content, video_url, order_num, duration_minutes, content_type')
       .eq('course_id', course.id)
       .order('order_num', { ascending: true });
 
     // Get quizzes
     const { data: quizzes } = await supabase
       .from('quizzes')
-      .select('id, title, description, time_limit_minutes, passing_score, created_at')
+      .select('id, title, description, difficulty, time_limit_minutes, passing_score, created_at, questions(id)')
+      .eq('course_id', course.id);
+
+    // Get enrollment count
+    const { count: enrollmentCount } = await supabase
+      .from('enrollments')
+      .select('id', { count: 'exact', head: true })
       .eq('course_id', course.id);
 
     // Enrollment + progress if authenticated
@@ -286,6 +314,8 @@ router.get('/:id', async (req, res) => {
         course: {
           ...course,
           thumbnail: course.thumbnail_url,
+          totalEnrollments: enrollmentCount || 0,
+          enrolled_count: enrollmentCount || 0,
           lessons: (lessons || []).map(l => ({
             ...l,
             _id: l.id,

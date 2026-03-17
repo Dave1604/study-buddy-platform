@@ -185,7 +185,7 @@ router.get('/course/:courseId', async (req, res) => {
 // ──────────────────────────────────────────────
 router.put('/lesson', async (req, res) => {
   try {
-    const { course_id, lesson_id, time_spent_seconds, time_spent_minutes } = req.body;
+    const { course_id, lesson_id, time_spent_seconds, time_spent_minutes, completed } = req.body;
     if (!course_id || !lesson_id) {
       return res.status(400).json({ status: 'error', message: 'course_id and lesson_id are required.' });
     }
@@ -209,10 +209,26 @@ router.put('/lesson', async (req, res) => {
       prog = newProg;
     }
 
+    // Handle lesson completion
+    let completedLessons = prog.completed_lessons || [];
+    let completionPercentage = prog.completion_percentage || 0;
+
+    if (completed && lesson_id && !completedLessons.includes(lesson_id)) {
+      completedLessons = [...completedLessons, lesson_id];
+      // Recalculate completion percentage
+      const { count } = await supabase
+        .from('lessons')
+        .select('id', { count: 'exact', head: true })
+        .eq('course_id', course_id);
+      completionPercentage = count ? Math.round((completedLessons.length / count) * 100) : 0;
+    }
+
     const { data: updated, error } = await supabase
       .from('progress')
       .update({
         total_time_spent_minutes: (prog.total_time_spent_minutes || 0) + addedMinutes,
+        completed_lessons: completedLessons,
+        completion_percentage: completionPercentage,
         last_accessed: new Date().toISOString()
       })
       .eq('student_id', userId)

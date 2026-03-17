@@ -60,11 +60,14 @@ const CourseDetail = () => {
         quizService.getCourseQuizzes(id)
       ]);
       
-      setCourse(courseRes.data.data.course);
+      const courseData = courseRes.data.data.course;
+      setCourse(courseData);
       setQuizzes(quizzesRes.data.data.quizzes);
 
-      // Check if user is enrolled
-      if (user && courseRes.data.data.course.enrolledStudents.includes(user.id)) {
+      // Use isEnrolled flag and embedded progress from course response
+      if (courseData.isEnrolled && courseData.progress) {
+        setProgress(courseData.progress);
+      } else if (courseData.isEnrolled) {
         const progressRes = await progressService.getCourseProgress(id);
         setProgress(progressRes.data.data.progress);
       }
@@ -73,16 +76,16 @@ const CourseDetail = () => {
     } finally {
       setLoading(false);
     }
-  }, [id, user]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchCourseData();
   }, [fetchCourseData]);
 
-  // Initialize YouTube players on lessons tab to capture durations
+  // Initialize YouTube players on lessons tab to capture durations + auto-complete
   useEffect(() => {
     const initPlayers = async () => {
-      if (!course || activeTab !== 'lessons' || !(progress !== null)) return;
+      if (!course || activeTab !== 'lessons' || !course.isEnrolled) return;
       const lessonsWithVideo = course.lessons.filter(l => l.videoUrl);
       if (lessonsWithVideo.length === 0) return;
 
@@ -104,16 +107,20 @@ const CourseDetail = () => {
                   const currentMinutes = lesson.duration || 0;
                   const newMinutes = Math.max(0, Math.round(seconds / 60));
                   if (currentMinutes !== newMinutes) {
-                    await courseService.updateLessonDuration(course._id, lesson._id, { durationSeconds: seconds });
-                    // update local state to reflect new duration
+                    await courseService.updateLessonDuration(course.id, lesson._id, { durationSeconds: seconds });
                     setCourse(prev => ({
                       ...prev,
                       lessons: prev.lessons.map(l => l._id === lesson._id ? { ...l, duration: newMinutes } : l)
                     }));
                   }
                 }
-              } catch (e) {
-                // ignore failures; UI still works without persisted duration
+              } catch (e) { /* ignore */ }
+            },
+            onStateChange: (event) => {
+              // YT.PlayerState.ENDED = 0 — auto-mark lesson complete when video finishes
+              if (event.data === 0) {
+                const duration = Math.round(event.target.getDuration() || 0);
+                handleLessonComplete(lesson._id, duration);
               }
             },
             onError: () => {
@@ -130,7 +137,7 @@ const CourseDetail = () => {
     return () => {
       // optional cleanup not strictly necessary for page lifetime
     };
-  }, [course, activeTab, progress]);
+  }, [course, activeTab, progress]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleEnroll = async () => {
     try {
@@ -167,14 +174,13 @@ const CourseDetail = () => {
     if (!user || !progress) return;
     
     try {
-      // Track lesson access
+      // Track lesson access (time only, no completion)
       await progressService.updateLessonProgress({
-        courseId: id,
-        lessonId: lessonId,
-        completed: false,
-        timeSpent: 0
+        course_id: id,
+        lesson_id: lessonId,
+        time_spent_minutes: 0
       });
-      
+
       // Refresh progress data
       const progressRes = await progressService.getCourseProgress(id);
       setProgress(progressRes.data.data.progress);
@@ -189,12 +195,12 @@ const CourseDetail = () => {
     try {
       // Track lesson completion
       await progressService.updateLessonProgress({
-        courseId: id,
-        lessonId: lessonId,
+        course_id: id,
+        lesson_id: lessonId,
         completed: true,
-        timeSpent: timeSpent
+        time_spent_seconds: timeSpent
       });
-      
+
       // Refresh progress data
       const progressRes = await progressService.getCourseProgress(id);
       setProgress(progressRes.data.data.progress);
@@ -203,7 +209,7 @@ const CourseDetail = () => {
     }
   };
 
-  const isEnrolled = progress !== null;
+  const isEnrolled = !!(progress !== null || course?.isEnrolled);
 
   if (loading) {
     return <LoadingSpinner message="Loading course..." />;
@@ -247,18 +253,18 @@ const CourseDetail = () => {
 
               <div className="instructor-info">
                 <div className="instructor-avatar">
-                  {course.instructor.avatar ? (
-                    <img src={course.instructor.avatar} alt={course.instructor.firstName} />
+                  {course.instructor?.avatar_url ? (
+                    <img src={course.instructor.avatar_url} alt={course.instructor.name} />
                   ) : (
                     <div className="avatar-placeholder">
-                      {course.instructor.firstName.charAt(0)}{course.instructor.lastName.charAt(0)}
+                      {(course.instructor?.name || 'IN').charAt(0).toUpperCase()}
                     </div>
                   )}
                 </div>
                 <div>
                   <div className="instructor-label">Instructor</div>
                   <div className="instructor-name">
-                    {course.instructor.firstName} {course.instructor.lastName}
+                    {course.instructor?.name || 'Instructor'}
                   </div>
                 </div>
               </div>
@@ -279,9 +285,9 @@ const CourseDetail = () => {
                   <CheckCircle size={20} color="#10b981" />
                   <span>You are enrolled in this course</span>
                   <div className="course-progress-bar">
-                    <div className="progress-fill" style={{width: `${progress.completionPercentage}%`}}></div>
+                    <div className="progress-fill" style={{width: `${progress.completion_percentage || 0}%`}}></div>
                   </div>
-                  <span className="progress-text">{progress.completionPercentage}% Complete</span>
+                  <span className="progress-text">{progress.completion_percentage || 0}% Complete</span>
                 </div>
               )}
             </div>
@@ -346,9 +352,7 @@ const CourseDetail = () => {
             {activeTab === 'lessons' && (
               <div className="lessons-tab" style={{maxHeight: '70vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch'}}>
                 {course.lessons.map((lesson, index) => {
-                  const isCompleted = progress?.lessonsProgress.find(
-                    lp => lp.lessonId.toString() === lesson._id.toString()
-                  )?.completed || false;
+                  const isCompleted = !!(progress?.completed_lessons || []).includes(lesson._id?.toString());
 
                   // Extract YouTube video ID from URL
                   const getYouTubeId = (url) => {
@@ -365,7 +369,7 @@ const CourseDetail = () => {
                       <div className="lesson-number">{index + 1}</div>
                       <div className="lesson-content">
                         <h4>{lesson.title}</h4>
-                        <p>{lesson.content.substring(0, 150)}...</p>
+                        <p>{(lesson.content || lesson.description || '').substring(0, 150)}{(lesson.content || lesson.description || '').length > 0 ? '...' : ''}</p>
                         
                         {isEnrolled && videoId && (
                           <div className="lesson-video" style={{marginTop: '16px'}}>
@@ -397,7 +401,7 @@ const CourseDetail = () => {
                         
                         <div className="lesson-meta" style={{marginTop: '12px'}}>
                           <span><Clock size={14} /> {lesson.duration} min</span>
-                          <span className="badge badge-primary">{lesson.contentType}</span>
+                          <span className="badge badge-primary">{lesson.content_type || lesson.contentType || 'video'}</span>
                         </div>
                         
                         {isEnrolled && !isCompleted && (
