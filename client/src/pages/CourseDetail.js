@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Clock, BookOpen, Users, Award, CheckCircle, PlayCircle } from 'lucide-react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { Clock, BookOpen, Users, Award, CheckCircle, PlayCircle, Lock, ChevronRight } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { courseService, quizService, progressService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import './CourseDetail.css';
 
 const CourseDetail = () => {
   const { id } = useParams();
@@ -20,9 +19,9 @@ const CourseDetail = () => {
   const playersRef = useRef({});
   const [unavailableMap, setUnavailableMap] = useState({});
 
-  const formatTotalMinutes = (minutes) => {
+  const formatMinutes = (minutes) => {
     const hrs = Math.floor((minutes || 0) / 60);
-    const mins = Math.max(0, Math.round((minutes || 0) % 60));
+    const mins = Math.round((minutes || 0) % 60);
     return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
   };
 
@@ -31,24 +30,14 @@ const CourseDetail = () => {
     return new Promise((resolve) => {
       const existing = document.getElementById('youtube-iframe-api');
       if (existing) {
-        if (window.YT?.Player) {
-          ytApiLoadedRef.current = true;
-          resolve();
-        } else {
-          window.onYouTubeIframeAPIReady = () => {
-            ytApiLoadedRef.current = true;
-            resolve();
-          };
-        }
+        if (window.YT?.Player) { ytApiLoadedRef.current = true; resolve(); }
+        else { window.onYouTubeIframeAPIReady = () => { ytApiLoadedRef.current = true; resolve(); }; }
         return;
       }
       const tag = document.createElement('script');
       tag.id = 'youtube-iframe-api';
       tag.src = 'https://www.youtube.com/iframe_api';
-      window.onYouTubeIframeAPIReady = () => {
-        ytApiLoadedRef.current = true;
-        resolve();
-      };
+      window.onYouTubeIframeAPIReady = () => { ytApiLoadedRef.current = true; resolve(); };
       document.body.appendChild(tag);
     });
   };
@@ -59,12 +48,9 @@ const CourseDetail = () => {
         courseService.getCourse(id),
         quizService.getCourseQuizzes(id)
       ]);
-      
       const courseData = courseRes.data.data.course;
       setCourse(courseData);
-      setQuizzes(quizzesRes.data.data.quizzes);
-
-      // Use isEnrolled flag and embedded progress from course response
+      setQuizzes(quizzesRes.data.data.quizzes || []);
       if (courseData.isEnrolled && courseData.progress) {
         setProgress(courseData.progress);
       } else if (courseData.isEnrolled) {
@@ -78,25 +64,33 @@ const CourseDetail = () => {
     }
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    fetchCourseData();
-  }, [fetchCourseData]);
+  useEffect(() => { fetchCourseData(); }, [fetchCourseData]);
 
-  // Initialize YouTube players on lessons tab to capture durations + auto-complete
+  const handleLessonComplete = useCallback(async (lessonId, timeSpent = 0) => {
+    if (!user) return;
+    try {
+      await progressService.updateLessonProgress({
+        course_id: id, lesson_id: lessonId, completed: true, time_spent_seconds: timeSpent
+      });
+      const progressRes = await progressService.getCourseProgress(id);
+      setProgress(progressRes.data.data.progress);
+    } catch (error) {
+      console.error('Error updating lesson progress:', error);
+    }
+  }, [id, user]);
+
+  // YouTube player init — auto-complete lesson when video ends
   useEffect(() => {
     const initPlayers = async () => {
       if (!course || activeTab !== 'lessons' || !course.isEnrolled) return;
       const lessonsWithVideo = course.lessons.filter(l => l.videoUrl);
-      if (lessonsWithVideo.length === 0) return;
-
+      if (!lessonsWithVideo.length) return;
       await loadYouTubeAPI();
-
       lessonsWithVideo.forEach((lesson) => {
-        const videoId = (lesson.videoUrl || '').match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/)?.[2];
+        const videoId = (lesson.videoUrl || '').match(/^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/)?.[2];
         if (!videoId) return;
         const elementId = `player-${lesson._id}`;
-        if (playersRef.current[elementId]) return; // already initialized
-
+        if (playersRef.current[elementId]) return;
         const player = new window.YT.Player(elementId, {
           videoId,
           events: {
@@ -104,373 +98,324 @@ const CourseDetail = () => {
               try {
                 const seconds = Math.round(event.target.getDuration() || 0);
                 if (seconds > 0) {
-                  const currentMinutes = lesson.duration || 0;
                   const newMinutes = Math.max(0, Math.round(seconds / 60));
-                  if (currentMinutes !== newMinutes) {
+                  if ((lesson.duration || 0) !== newMinutes) {
                     await courseService.updateLessonDuration(course.id, lesson._id, { durationSeconds: seconds });
-                    setCourse(prev => ({
-                      ...prev,
-                      lessons: prev.lessons.map(l => l._id === lesson._id ? { ...l, duration: newMinutes } : l)
-                    }));
+                    setCourse(prev => ({ ...prev, lessons: prev.lessons.map(l => l._id === lesson._id ? { ...l, duration: newMinutes } : l) }));
                   }
                 }
               } catch (e) { /* ignore */ }
             },
             onStateChange: (event) => {
-              // YT.PlayerState.ENDED = 0 — auto-mark lesson complete when video finishes
-              if (event.data === 0) {
-                const duration = Math.round(event.target.getDuration() || 0);
-                handleLessonComplete(lesson._id, duration);
-              }
+              if (event.data === 0) handleLessonComplete(lesson._id, Math.round(event.target.getDuration() || 0));
             },
-            onError: () => {
-              setUnavailableMap(prev => ({ ...prev, [lesson._id]: true }));
-            }
+            onError: () => setUnavailableMap(prev => ({ ...prev, [lesson._id]: true }))
           }
         });
         playersRef.current[elementId] = player;
       });
     };
-
     initPlayers();
-
-    return () => {
-      // optional cleanup not strictly necessary for page lifetime
-    };
   }, [course, activeTab, progress]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleEnroll = async () => {
     try {
       setEnrolling(true);
-      const response = await courseService.enrollCourse(id);
-      console.log('Enrollment response:', response);
-      
-      // Refresh course data to get updated enrollment status
+      await courseService.enrollCourse(id);
       await fetchCourseData();
-      
-      // Show success message
-      alert('Successfully enrolled in course! You can now access all lessons and quizzes.');
     } catch (error) {
-      console.error('Error enrolling:', error);
-      
-      // More detailed error handling
-      if (error.response) {
-        console.error('Backend error response:', error.response.data);
-        const errorMessage = error.response.data?.message || 'Unknown server error';
-        alert(`Error enrolling in course: ${errorMessage}`);
-      } else if (error.request) {
-        console.error('Network error:', error.request);
-        alert('Error enrolling in course: Unable to connect to server. Please check your internet connection.');
-      } else {
-        console.error('Error setting up request:', error.message);
-        alert('Error enrolling in course: Please try again.');
-      }
+      const msg = error.response?.data?.message || 'Please try again.';
+      alert(`Error enrolling: ${msg}`);
     } finally {
       setEnrolling(false);
     }
   };
 
   const handleLessonClick = async (lessonId) => {
-    if (!user || !progress) return;
-    
+    if (!user || !course?.isEnrolled) return;
     try {
-      // Track lesson access (time only, no completion)
-      await progressService.updateLessonProgress({
-        course_id: id,
-        lesson_id: lessonId,
-        time_spent_minutes: 0
-      });
-
-      // Refresh progress data
-      const progressRes = await progressService.getCourseProgress(id);
-      setProgress(progressRes.data.data.progress);
-    } catch (error) {
-      console.error('Error updating lesson progress:', error);
-    }
-  };
-
-  const handleLessonComplete = async (lessonId, timeSpent = 0) => {
-    if (!user || !progress) return;
-    
-    try {
-      // Track lesson completion
-      await progressService.updateLessonProgress({
-        course_id: id,
-        lesson_id: lessonId,
-        completed: true,
-        time_spent_seconds: timeSpent
-      });
-
-      // Refresh progress data
-      const progressRes = await progressService.getCourseProgress(id);
-      setProgress(progressRes.data.data.progress);
-    } catch (error) {
-      console.error('Error updating lesson progress:', error);
-    }
+      await progressService.updateLessonProgress({ course_id: id, lesson_id: lessonId, time_spent_minutes: 0 });
+    } catch (e) { /* ignore */ }
   };
 
   const isEnrolled = !!(progress !== null || course?.isEnrolled);
+  const completionPct = progress?.completion_percentage || 0;
+  const completedLessons = progress?.completed_lessons || [];
 
-  if (loading) {
-    return <LoadingSpinner message="Loading course..." />;
-  }
+  if (loading) return <LoadingSpinner message="Loading course..." />;
+  if (!course) return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="card text-center max-w-sm">
+        <p className="text-gray-500 mb-4">Course not found.</p>
+        <Link to="/courses" className="btn-primary">Back to Courses</Link>
+      </div>
+    </div>
+  );
 
-  if (!course) {
-    return <div className="container" style={{padding: '60px 0'}}>Course not found</div>;
-  }
+  const totalDuration = (course.lessons || []).reduce((sum, l) => sum + (l.duration || 0), 0);
+  const levelColor = course.level === 'beginner' ? 'bg-emerald-100 text-emerald-700' : course.level === 'intermediate' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700';
+
+  const TABS = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'lessons', label: `Lessons (${(course.lessons || []).length})` },
+    { key: 'quizzes', label: `Quizzes (${quizzes.length})` },
+  ];
 
   return (
-    <div className="course-detail-page">
-      {/* Course Header */}
-      <div className="course-header">
-        <div className="container">
-          <div className="course-header-content">
-            <div className="course-header-info">
-              <div className="badge badge-primary">{course.category}</div>
-              <h1>{course.title}</h1>
-              <p>{course.description}</p>
-              
-              <div className="course-meta-list">
-                <div className="meta-item">
-                  <BookOpen size={20} />
-                  <span>{course.lessons.length} lessons</span>
-                </div>
-                <div className="meta-item">
-                  <Users size={20} />
-                  <span>{course.totalEnrollments} students</span>
-                </div>
-                <div className="meta-item">
-                  <Clock size={20} />
-                  <span>{formatTotalMinutes(course.lessons.reduce((sum, l) => sum + (l.duration || 0), 0))} total</span>
-                </div>
-                <div className="meta-item">
-                  <Award size={20} />
-                  <span className={`badge badge-${course.level === 'beginner' ? 'success' : course.level === 'intermediate' ? 'warning' : 'danger'}`}>
-                    {course.level}
-                  </span>
-                </div>
-              </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Dark header */}
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 text-white">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <span className="text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-white/10 text-slate-300">{course.category}</span>
+            {course.level && <span className={`text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-full ${levelColor}`}>{course.level}</span>}
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3">{course.title}</h1>
+          <p className="text-slate-300 text-base max-w-2xl leading-relaxed mb-6">{course.description}</p>
 
-              <div className="instructor-info">
-                <div className="instructor-avatar">
-                  {course.instructor?.avatar_url ? (
-                    <img src={course.instructor.avatar_url} alt={course.instructor.name} />
-                  ) : (
-                    <div className="avatar-placeholder">
-                      {(course.instructor?.name || 'IN').charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div className="instructor-label">Instructor</div>
-                  <div className="instructor-name">
-                    {course.instructor?.name || 'Instructor'}
-                  </div>
-                </div>
-              </div>
+          {/* Meta row */}
+          <div className="flex flex-wrap gap-5 text-sm text-slate-300 mb-8">
+            <span className="flex items-center gap-1.5"><BookOpen className="h-4 w-4" />{(course.lessons || []).length} lessons</span>
+            <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" />{formatMinutes(totalDuration)} total</span>
+            <span className="flex items-center gap-1.5"><Users className="h-4 w-4" />{course.totalEnrollments || 0} students</span>
+            <span className="flex items-center gap-1.5"><Award className="h-4 w-4" />{quizzes.length} {quizzes.length === 1 ? 'quiz' : 'quizzes'}</span>
+          </div>
 
-              {!isEnrolled && (
-                <button
-                  onClick={handleEnroll}
-                  className="btn btn-primary btn-large btn-shimmer hover-lift"
-                  style={{minHeight: '48px'}}
-                  disabled={enrolling}
-                >
-                  {enrolling ? 'Enrolling...' : 'Enroll in Course — Free'}
-                </button>
-              )}
-
-              {isEnrolled && (
-                <div className="enrollment-status">
-                  <CheckCircle size={20} color="#10b981" />
-                  <span>You are enrolled in this course</span>
-                  <div className="course-progress-bar">
-                    <div className="progress-fill" style={{width: `${progress.completion_percentage || 0}%`}}></div>
-                  </div>
-                  <span className="progress-text">{progress.completion_percentage || 0}% Complete</span>
-                </div>
-              )}
+          {/* Instructor */}
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 rounded-full bg-cyan-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+              {(course.instructor?.name || 'I').charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 uppercase tracking-wide">Instructor</p>
+              <p className="text-sm font-semibold">{course.instructor?.name || 'Instructor'}</p>
             </div>
           </div>
+
+          {/* Enroll / Progress */}
+          {!isEnrolled && (
+            <button
+              onClick={handleEnroll}
+              disabled={enrolling}
+              className="btn-primary text-base px-8 py-3 btn-shimmer hover-lift disabled:opacity-60"
+            >
+              {enrolling ? 'Enrolling...' : 'Enrol for Free'}
+            </button>
+          )}
+          {isEnrolled && (
+            <div className="flex items-center gap-4 bg-white/10 rounded-2xl px-5 py-4 max-w-sm">
+              <CheckCircle className="h-6 w-6 text-emerald-400 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white mb-1.5">Enrolled — {completionPct}% complete</p>
+                <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${completionPct}%` }} />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Course Content */}
-      <div className="container">
-        <div className="course-content-section">
-          <div className="content-tabs">
-            <button 
-              className={activeTab === 'overview' ? 'active' : ''}
-              onClick={() => setActiveTab('overview')}
+      {/* Tabs + content */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Tab bar */}
+        <div className="flex gap-1 bg-white rounded-2xl border border-gray-100 shadow-sm p-1 mb-6 w-fit">
+          {TABS.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${
+                activeTab === tab.key
+                  ? 'bg-cyan-600 text-white shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
             >
-              Overview
+              {tab.label}
             </button>
-            <button 
-              className={activeTab === 'lessons' ? 'active' : ''}
-              onClick={() => setActiveTab('lessons')}
-            >
-              Lessons
-            </button>
-            <button 
-              className={activeTab === 'quizzes' ? 'active' : ''}
-              onClick={() => setActiveTab('quizzes')}
-            >
-              Quizzes ({quizzes.length})
-            </button>
-          </div>
+          ))}
+        </div>
 
-          <div className="content-body">
-            {activeTab === 'overview' && (
-              <div className="overview-tab">
-                {course.learningObjectives && course.learningObjectives.length > 0 && (
-                  <div className="content-section">
-                    <h3>What you'll learn</h3>
-                    <ul className="objectives-list">
-                      {course.learningObjectives.map((obj, index) => (
-                        <li key={index}>
-                          <CheckCircle size={20} color="#10b981" />
-                          <span>{obj}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {course.prerequisites && course.prerequisites.length > 0 && (
-                  <div className="content-section">
-                    <h3>Prerequisites</h3>
-                    <ul className="prerequisites-list">
-                      {course.prerequisites.map((pre, index) => (
-                        <li key={index}>{pre}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+        {/* Overview */}
+        {activeTab === 'overview' && (
+          <div className="grid gap-6">
+            {course.learningObjectives?.length > 0 && (
+              <div className="card">
+                <h3 className="text-base font-bold text-gray-900 mb-4">What you'll learn</h3>
+                <ul className="grid sm:grid-cols-2 gap-3">
+                  {course.learningObjectives.map((obj, i) => (
+                    <li key={i} className="flex items-start gap-2.5">
+                      <CheckCircle className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-sm text-gray-700">{obj}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
-
-            {activeTab === 'lessons' && (
-              <div className="lessons-tab" style={{maxHeight: '70vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch'}}>
-                {course.lessons.map((lesson, index) => {
-                  const isCompleted = !!(progress?.completed_lessons || []).includes(lesson._id?.toString());
-
-                  // Extract YouTube video ID from URL
-                  const getYouTubeId = (url) => {
-                    if (!url) return null;
-                    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-                    const match = url.match(regExp);
-                    return (match && match[2].length === 11) ? match[2] : null;
-                  };
-
-                  const videoId = lesson.videoUrl ? getYouTubeId(lesson.videoUrl) : null;
-
-                  return (
-                    <div key={lesson._id} className="lesson-item" onClick={() => handleLessonClick(lesson._id)}>
-                      <div className="lesson-number">{index + 1}</div>
-                      <div className="lesson-content">
-                        <h4>{lesson.title}</h4>
-                        <p>{(lesson.content || lesson.description || '').substring(0, 150)}{(lesson.content || lesson.description || '').length > 0 ? '...' : ''}</p>
-                        
-                        {isEnrolled && videoId && (
-                          <div className="lesson-video" style={{marginTop: '16px'}}>
-                            {unavailableMap[lesson._id] && (
-                              <div className="alert-error" style={{marginBottom: '8px'}}>
-                                Video unavailable. We'll replace this link soon.
-                              </div>
-                            )}
-                            {/* 16:9 aspect ratio container */}
-                            <div style={{position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '12px'}}>
-                              <iframe
-                                id={`player-${lesson._id}`}
-                                src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1`}
-                                title={lesson.title}
-                                frameBorder="0"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                                style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: '12px'}}
-                              ></iframe>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {!isEnrolled && lesson.videoUrl && (
-                          <div style={{marginTop: '12px', padding: '12px', background: '#f3f4f6', borderRadius: '8px', fontSize: '14px', color: '#6b7280'}}>
-                            🎥 Video lesson available after enrollment
-                          </div>
-                        )}
-                        
-                        <div className="lesson-meta" style={{marginTop: '12px'}}>
-                          <span><Clock size={14} /> {lesson.duration} min</span>
-                          <span className="badge badge-primary">{lesson.content_type || lesson.contentType || 'video'}</span>
-                        </div>
-                        
-                        {isEnrolled && !isCompleted && (
-                          <div style={{marginTop: '12px'}}>
-                            <button 
-                              className="btn btn-sm btn-success"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleLessonComplete(lesson._id, lesson.duration * 60); // Convert minutes to seconds
-                              }}
-                            >
-                              <CheckCircle size={16} />
-                              Mark as Complete
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      <div className="lesson-status">
-                        {isCompleted ? (
-                          <CheckCircle size={24} color="#10b981" />
-                        ) : isEnrolled ? (
-                          <PlayCircle size={24} color="#4f46e5" />
-                        ) : (
-                          <span className="badge badge-secondary">Enroll to access</span>
-                        )}
-                      </div>
+            {course.prerequisites?.length > 0 && (
+              <div className="card">
+                <h3 className="text-base font-bold text-gray-900 mb-4">Prerequisites</h3>
+                <ul className="space-y-2">
+                  {course.prerequisites.map((pre, i) => (
+                    <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
+                      <ChevronRight className="h-4 w-4 text-cyan-500" />{pre}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {/* Course summary card if no objectives */}
+            {!course.learningObjectives?.length && !course.prerequisites?.length && (
+              <div className="card">
+                <h3 className="text-base font-bold text-gray-900 mb-3">About this course</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">{course.description}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+                  {[
+                    { label: 'Lessons', value: (course.lessons || []).length },
+                    { label: 'Duration', value: formatMinutes(totalDuration) },
+                    { label: 'Level', value: course.level || 'All levels' },
+                    { label: 'Quizzes', value: quizzes.length },
+                  ].map(s => (
+                    <div key={s.label} className="bg-gray-50 rounded-xl p-3 text-center">
+                      <p className="text-lg font-extrabold text-gray-900">{s.value}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
             )}
+          </div>
+        )}
 
-            {activeTab === 'quizzes' && (
-              <div className="quizzes-tab">
-                {quizzes.length > 0 ? (
-                  quizzes.map((quiz) => (
-                    <div key={quiz._id} className="quiz-item card">
-                      <div className="quiz-header">
-                        <h4>{quiz.title}</h4>
-                        <span className={`badge badge-${quiz.difficulty === 'easy' ? 'success' : quiz.difficulty === 'medium' ? 'warning' : 'danger'}`}>
-                          {quiz.difficulty}
+        {/* Lessons */}
+        {activeTab === 'lessons' && (
+          <div className="space-y-3">
+            {(course.lessons || []).map((lesson, index) => {
+              const isCompleted = completedLessons.includes(lesson._id?.toString());
+              const videoId = lesson.videoUrl
+                ? (lesson.videoUrl.match(/^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/) || [])[2]
+                : null;
+
+              return (
+                <div
+                  key={lesson._id}
+                  className="card cursor-pointer hover:border-cyan-200 transition-all"
+                  onClick={() => handleLessonClick(lesson._id)}
+                >
+                  <div className="flex items-start gap-4">
+                    {/* Number / status */}
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 ${isCompleted ? 'bg-emerald-100 text-emerald-600' : 'bg-cyan-50 text-cyan-600'}`}>
+                      {isCompleted ? <CheckCircle className="h-5 w-5" /> : index + 1}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <h4 className="text-sm font-semibold text-gray-900">{lesson.title}</h4>
+                        <span className="text-xs text-gray-400 flex-shrink-0 flex items-center gap-1">
+                          <Clock className="h-3 w-3" />{lesson.duration || 0}m
                         </span>
                       </div>
-                      <p>{quiz.description}</p>
-                      <div className="quiz-meta">
-                        <span><BookOpen size={16} /> {quiz.questions.length} questions</span>
-                        <span><Clock size={16} /> {quiz.duration} min</span>
-                        <span><Award size={16} /> {quiz.passingScore}% to pass</span>
-                      </div>
-                      {isEnrolled && (
-                        <button 
-                          onClick={() => navigate(`/quiz/${quiz._id}`)}
-                          className="btn btn-primary"
+                      <p className="text-xs text-gray-500 line-clamp-2 mb-3">
+                        {(lesson.content || lesson.description || '').substring(0, 140)}
+                      </p>
+
+                      {/* Video embed */}
+                      {isEnrolled && videoId && (
+                        <div className="mt-2">
+                          {unavailableMap[lesson._id] && (
+                            <p className="text-xs text-red-500 mb-2">Video unavailable — we'll replace this soon.</p>
+                          )}
+                          <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: '12px', overflow: 'hidden' }}>
+                            <iframe
+                              id={`player-${lesson._id}`}
+                              src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1`}
+                              title={lesson.title}
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: '12px' }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {!isEnrolled && lesson.videoUrl && (
+                        <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2 w-fit">
+                          <Lock className="h-3 w-3" /> Video available after enrolment
+                        </div>
+                      )}
+
+                      {/* Mark complete button */}
+                      {isEnrolled && !isCompleted && (
+                        <button
+                          className="mt-3 text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+                          onClick={(e) => { e.stopPropagation(); handleLessonComplete(lesson._id, (lesson.duration || 0) * 60); }}
                         >
-                          Start Quiz
+                          <CheckCircle className="h-3.5 w-3.5" /> Mark as complete
                         </button>
                       )}
-                      {!isEnrolled && (
-                        <span className="badge badge-secondary">Enroll to take quiz</span>
-                      )}
                     </div>
-                  ))
-                ) : (
-                  <div className="no-data">No quizzes available for this course yet</div>
-                )}
-              </div>
-            )}
+
+                    {/* Right icon */}
+                    <div className="flex-shrink-0 mt-0.5">
+                      {isCompleted
+                        ? <CheckCircle className="h-5 w-5 text-emerald-500" />
+                        : isEnrolled
+                        ? <PlayCircle className="h-5 w-5 text-cyan-400" />
+                        : <Lock className="h-4 w-4 text-gray-300" />}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
+        )}
+
+        {/* Quizzes */}
+        {activeTab === 'quizzes' && (
+          <div className="space-y-4">
+            {quizzes.length === 0 ? (
+              <div className="card text-center py-12">
+                <Award className="h-10 w-10 text-gray-200 mx-auto mb-3" />
+                <p className="text-sm text-gray-400">No quizzes for this course yet.</p>
+              </div>
+            ) : quizzes.map((quiz) => {
+              const diffColor = quiz.difficulty === 'easy'
+                ? 'bg-emerald-100 text-emerald-700'
+                : quiz.difficulty === 'hard'
+                ? 'bg-red-100 text-red-700'
+                : 'bg-amber-100 text-amber-700';
+
+              return (
+                <div key={quiz._id || quiz.id} className="card">
+                  <div className="flex items-start justify-between gap-4 mb-2">
+                    <h4 className="text-base font-bold text-gray-900">{quiz.title}</h4>
+                    {quiz.difficulty && (
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${diffColor}`}>
+                        {quiz.difficulty}
+                      </span>
+                    )}
+                  </div>
+                  {quiz.description && <p className="text-sm text-gray-500 mb-4">{quiz.description}</p>}
+                  <div className="flex flex-wrap gap-4 text-xs text-gray-500 mb-4">
+                    <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{quiz.time_limit_minutes || quiz.duration || 10} min</span>
+                    <span className="flex items-center gap-1"><Award className="h-3.5 w-3.5" />{quiz.passing_score || quiz.passingScore || 70}% to pass</span>
+                  </div>
+                  {isEnrolled ? (
+                    <button
+                      onClick={() => navigate(`/quiz/${quiz._id || quiz.id}`)}
+                      className="btn-primary text-sm"
+                    >
+                      Start Quiz
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <Lock className="h-3.5 w-3.5" /> Enrol to take this quiz
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

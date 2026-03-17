@@ -197,6 +197,11 @@ Three-tier architecture:
 
 The frontend and backend communicate via REST over HTTPS. All API routes are prefixed `/api/`. In production, the frontend calls `/api/*` which Vercel's routing proxies to the serverless Express function.
 
+**Environment configuration (two-file approach):**
+- Root `.env` — server-only secrets: `JWT_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `PORT`. Never exposed to the browser.
+- `client/.env` — frontend-only config: `REACT_APP_API_URL=http://localhost:5001/api` for local dev. In production, the frontend detects `NODE_ENV === 'production'` and uses `/api` directly (same domain, no CORS needed). React's build process strips all `REACT_APP_*` variables at compile time; non-prefixed variables are ignored entirely, preventing accidental exposure of server secrets.
+- On Vercel, environment variables are set via the dashboard (JWT_SECRET, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY) and are injected at runtime into the serverless function — never bundled into the client.
+
 ### 4.4 Application Pages (14 total)
 
 | Page | Route | Who sees it |

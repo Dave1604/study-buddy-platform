@@ -267,7 +267,7 @@ router.get('/:id', async (req, res) => {
     // Get quizzes
     const { data: quizzes } = await supabase
       .from('quizzes')
-      .select('id, title, description, difficulty, time_limit_minutes, passing_score, created_at, questions(id)')
+      .select('id, title, description, difficulty, time_limit_minutes, passing_score, created_at')
       .eq('course_id', course.id);
 
     // Get enrollment count
@@ -362,7 +362,7 @@ router.post('/', protect, authorize('instructor', 'admin'), async (req, res) => 
         is_published: is_published !== undefined ? is_published : (isPublished || false)
       })
       .select(`
-        id, title, description, category, instructor_id, thumbnail_url, is_published, created_at,
+        id, title, description, category, level, instructor_id, thumbnail_url, is_published, created_at,
         instructor:users!courses_instructor_id_fkey(id, name, avatar_url)
       `)
       .single();
@@ -408,7 +408,7 @@ router.put('/:id', protect, authorize('instructor', 'admin'), async (req, res) =
       .update(updates)
       .eq('id', req.params.id)
       .select(`
-        id, title, description, category, instructor_id, thumbnail_url, is_published,
+        id, title, description, category, level, instructor_id, thumbnail_url, is_published,
         instructor:users!courses_instructor_id_fkey(id, name, avatar_url)
       `)
       .single();

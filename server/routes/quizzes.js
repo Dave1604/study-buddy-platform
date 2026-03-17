@@ -198,19 +198,22 @@ router.post('/:id/submit', async (req, res) => {
       student_id: req.user.id,
       quiz_id: quiz.id,
       score,
-      answers: answersPayload
+      answers: answersPayload,
+      completed_at: new Date().toISOString()
     });
 
     res.status(200).json({
       status: 'success',
       data: {
-        score,
-        correct,
-        total,
-        passed,
-        quiz_title: quiz.title,
-        passing_score: quiz.passing_score || 70,
-        results
+        result: {
+          score: correct,
+          totalPoints: total,
+          percentage: score,
+          passed,
+          passingScore: quiz.passing_score || 70,
+          gradedAnswers: results.map(r => ({ questionId: r.question_id, isCorrect: r.is_correct })),
+          correctAnswers: results.map(r => ({ questionId: r.question_id, explanation: r.explanation }))
+        }
       }
     });
   } catch (err) {
