@@ -139,7 +139,7 @@ const Quiz = () => {
   if (result) {
     const passed = result.passed;
     return (
-      <div className="min-h-screen bg-gray-50 py-12">
+      <div className="min-h-screen bg-gray-50 pt-16 py-12">
         <div className="max-w-2xl mx-auto px-4">
           {/* Result card */}
           <div className="card animate-scale-in text-center">
@@ -176,7 +176,7 @@ const Quiz = () => {
 
             <div className="flex gap-3 justify-center">
               <button
-                onClick={() => navigate(`/courses/${quiz.course?._id || quiz.course}`)}
+                onClick={() => navigate(`/courses/${quiz.course_id || quiz.course?._id || quiz.course}`)}
                 className="btn-primary"
               >
                 <ArrowLeft className="h-4 w-4" /> Back to Course
@@ -230,11 +230,11 @@ const Quiz = () => {
   const isWarning = timeLeft < 60;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24 sm:pb-8">
+    <div className="min-h-screen bg-gray-50 pt-16 pb-24 sm:pb-8">
       {/* Thin top progress bar */}
       <div className="fixed top-0 left-0 right-0 z-50 h-1 bg-gray-200">
         <div
-          className="h-full bg-cyan-500 transition-all duration-300"
+          className="h-full bg-blue-500 transition-all duration-300"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -282,7 +282,7 @@ const Quiz = () => {
                 style={{ minHeight: '48px' }}
                 onClick={() => handleAnswer(question._id, option._id)}
               >
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${answers[question._id] === option._id ? 'border-cyan-600 bg-cyan-600' : 'border-gray-300'}`}>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${answers[question._id] === option._id ? 'border-blue-600 bg-blue-600' : 'border-gray-300'}`}>
                   {answers[question._id] === option._id && <div className="w-2 h-2 rounded-full bg-white" />}
                 </div>
                 <span className="text-sm text-gray-800">{option.text}</span>
@@ -297,7 +297,7 @@ const Quiz = () => {
                 style={{ minHeight: '48px' }}
                 onClick={() => handleAnswer(question._id, val)}
               >
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${answers[question._id] === val ? 'border-cyan-600 bg-cyan-600' : 'border-gray-300'}`}>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${answers[question._id] === val ? 'border-blue-600 bg-blue-600' : 'border-gray-300'}`}>
                   {answers[question._id] === val && <div className="w-2 h-2 rounded-full bg-white" />}
                 </div>
                 <span className="text-sm font-medium text-gray-800 capitalize">{val}</span>
@@ -332,7 +332,7 @@ const Quiz = () => {
                     handleAnswer(question._id, newAnswers);
                   }}
                 >
-                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isChecked ? 'border-cyan-600 bg-cyan-600' : 'border-gray-300'}`}>
+                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isChecked ? 'border-blue-600 bg-blue-600' : 'border-gray-300'}`}>
                     {isChecked && <CheckCircle className="h-3 w-3 text-white" />}
                   </div>
                   <span className="text-sm text-gray-800">{option.text}</span>
@@ -350,7 +350,7 @@ const Quiz = () => {
               key={index}
               className={`rounded-full transition-all duration-200 font-bold text-xs ${
                 index === currentQuestion
-                  ? 'w-8 h-7 bg-cyan-600 text-white'
+                  ? 'w-8 h-7 bg-blue-600 text-white'
                   : answers[quiz.questions[index]._id]
                   ? 'w-7 h-7 bg-emerald-500 text-white'
                   : 'w-7 h-7 bg-gray-200 text-gray-600 hover:bg-gray-300'

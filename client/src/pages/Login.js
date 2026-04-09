@@ -43,42 +43,38 @@ const Login = () => {
   return (
     <div className="min-h-screen flex">
       {/* Left panel */}
-      <div className="hidden lg:flex lg:w-5/12 bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 flex-col justify-between p-12 relative overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-32 -right-32 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl" />
-          <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl" />
-        </div>
+      <div className="hidden lg:flex lg:w-5/12 bg-blue-600 flex-col justify-between p-12 relative overflow-hidden">
         <div className="relative z-10">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-cyan-600 rounded-xl flex items-center justify-center">
+            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center border border-white/20">
               <BookOpen style={{ width: 18, height: 18, color: 'white' }} />
             </div>
-            <span className="font-extrabold text-xl text-white tracking-tight">Study<span className="text-cyan-400">Buddy</span></span>
+            <span className="font-extrabold text-xl text-white tracking-tight">Study<span className="text-blue-200">Buddy</span></span>
           </Link>
         </div>
         <div className="relative z-10">
           <h2 className="text-3xl font-extrabold text-white leading-tight mb-4 tracking-tight">Your learning journey<br />continues here.</h2>
-          <p className="text-slate-400 text-sm leading-relaxed mb-8">Track your progress, retake quizzes, and keep building knowledge — one lesson at a time.</p>
+          <p className="text-blue-100 text-sm leading-relaxed mb-8">Track your progress, retake quizzes, and keep building knowledge — one lesson at a time.</p>
           <div className="space-y-3">
             {['Instant feedback on every quiz answer', 'Visual progress charts and learning stats', 'Study at your own pace, any time'].map(point => (
               <div key={point} className="flex items-center gap-3">
-                <CheckCircle className="h-4 w-4 text-cyan-400 flex-shrink-0" />
-                <span className="text-sm text-slate-300">{point}</span>
+                <CheckCircle className="h-4 w-4 text-blue-200 flex-shrink-0" />
+                <span className="text-sm text-blue-100">{point}</span>
               </div>
             ))}
           </div>
         </div>
-        <p className="relative z-10 text-xs text-slate-500">© {new Date().getFullYear()} StudyBuddy · Arden University FYP</p>
+        <p className="relative z-10 text-xs text-blue-200">© {new Date().getFullYear()} StudyBuddy · Arden University FYP</p>
       </div>
 
       {/* Right panel */}
       <div className="flex-1 flex items-center justify-center px-6 py-12 bg-gray-50">
         <div className="w-full max-w-sm">
           <div className="flex items-center justify-center gap-2 mb-8 lg:hidden">
-            <div className="w-8 h-8 bg-cyan-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <BookOpen style={{ width: 17, height: 17, color: 'white' }} />
             </div>
-            <span className="font-extrabold text-lg text-gray-900">Study<span className="text-cyan-600">Buddy</span></span>
+            <span className="font-extrabold text-lg text-gray-900">Study<span className="text-blue-600">Buddy</span></span>
           </div>
           <div className="mb-8">
             <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Welcome back</h1>
@@ -147,7 +143,7 @@ const Login = () => {
           </form>
           <p className="mt-5 text-center text-sm text-gray-500">
             Don't have an account?{' '}
-            <Link to="/register" className="text-cyan-600 font-semibold hover:text-cyan-700 transition-colors">Create one free</Link>
+            <Link to="/register" className="text-blue-600 font-semibold hover:text-blue-700 transition-colors">Create one free</Link>
           </p>
           <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
             <p className="text-xs font-bold text-amber-800 mb-2 uppercase tracking-wide">Demo accounts</p>

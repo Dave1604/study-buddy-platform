@@ -5,13 +5,12 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
 import { BookOpen, Trophy, Clock, TrendingUp, PlayCircle, CheckCircle } from 'lucide-react';
-import LoadingSpinner from '../components/LoadingSpinner';
 import { progressService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import useCountUp from '../hooks/useCountUp';
 import useInView from '../hooks/useInView';
 
-const COLORS = ['#0891b2', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6'];
 
 const StatCard = ({ icon, value, label, detail, iconBg, delay = 0 }) => {
   const { count, trigger } = useCountUp(typeof value === 'number' ? value : 0, 1200);
@@ -62,14 +61,52 @@ const Dashboard = () => {
 
   const displayName = user?.name || (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'there');
 
-  if (loading) return <LoadingSpinner message="Loading your dashboard..." />;
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 pt-16">
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="skeleton h-3 w-24 mb-2 rounded-full" />
+          <div className="skeleton h-7 w-48 rounded-lg" />
+        </div>
+      </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+              <div className="skeleton w-12 h-12 rounded-2xl flex-shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="skeleton h-6 w-16 rounded" />
+                <div className="skeleton h-3 w-24 rounded-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="grid lg:grid-cols-2 gap-6 mb-8">
+          <div className="card"><div className="skeleton h-[260px] rounded-xl" /></div>
+          <div className="card"><div className="skeleton h-[260px] rounded-xl" /></div>
+        </div>
+        <div className="card space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 p-4">
+              <div className="skeleton w-10 h-10 rounded-full flex-shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="skeleton h-3.5 w-48 rounded-full" />
+                <div className="skeleton h-3 w-32 rounded-full" />
+              </div>
+              <div className="skeleton h-2 w-20 rounded-full hidden sm:block" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 
   if (!dashboardData) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 animate-gradient text-white">
+      <div className="min-h-screen bg-gray-50 pt-16">
+        <div className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <h1 className="text-3xl font-extrabold tracking-tight">My Dashboard</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">My Dashboard</h1>
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
@@ -91,19 +128,19 @@ const Dashboard = () => {
   }));
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Dark header banner */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 animate-gradient text-white">
+    <div className="min-h-screen bg-gray-50 pt-16">
+      {/* Clean white header */}
+      <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <p className="text-slate-400 text-sm mb-1">Welcome back,</p>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">{displayName}</h1>
-          <p className="text-slate-400 text-sm mt-1">Here's your learning overview</p>
+          <p className="text-gray-500 text-sm mb-1">Welcome back,</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">{displayName}</h1>
+          <p className="text-gray-500 text-sm mt-1">Here's your learning overview</p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stat cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 -mt-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard
             delay={0}
             icon={<BookOpen className="h-6 w-6 text-blue-600" />}
@@ -148,8 +185,8 @@ const Dashboard = () => {
                 <AreaChart data={quizPerformance} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0891b2" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#0891b2" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -167,11 +204,11 @@ const Dashboard = () => {
                   <Area
                     type="monotone"
                     dataKey="score"
-                    stroke="#0891b2"
+                    stroke="#2563eb"
                     strokeWidth={2.5}
                     fill="url(#scoreGradient)"
                     name="Quiz Score"
-                    dot={{ fill: '#0891b2', r: 4, strokeWidth: 0 }}
+                    dot={{ fill: '#2563eb', r: 4, strokeWidth: 0 }}
                     activeDot={{ r: 6 }}
                   />
                 </AreaChart>
@@ -253,13 +290,13 @@ const Dashboard = () => {
                         <CheckCircle className="h-5 w-5 text-emerald-600" />
                       </div>
                     ) : (
-                      <div className="w-10 h-10 bg-cyan-100 rounded-full flex items-center justify-center">
-                        <PlayCircle className="h-5 w-5 text-cyan-600" />
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <PlayCircle className="h-5 w-5 text-blue-600" />
                       </div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-800 group-hover:text-cyan-600 transition-colors truncate">{activity.course.title}</p>
+                    <p className="text-sm font-semibold text-gray-800 group-hover:text-blue-600 transition-colors truncate">{activity.course.title}</p>
                     <p className="text-xs text-gray-400">Last accessed: {new Date(activity.lastAccessed).toLocaleDateString()}</p>
                   </div>
                   <div className="flex-shrink-0 flex items-center gap-3">

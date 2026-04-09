@@ -5,11 +5,17 @@ import { User, Mail, Award, BookOpen, TrendingUp, Edit2, Check, X } from 'lucide
 const Profile = () => {
   const { user, updateProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+
+  // DB returns a single `name` field — split it for the form
+  const nameParts = (user?.name || '').trim().split(' ');
+  const derivedFirst = user?.firstName || nameParts[0] || '';
+  const derivedLast = user?.lastName || nameParts.slice(1).join(' ') || '';
+
   const [formData, setFormData] = useState({
-    firstName: user?.firstName || '',
-    lastName: user?.lastName || '',
+    firstName: derivedFirst,
+    lastName: derivedLast,
     bio: user?.bio || '',
-    avatar: user?.avatar || ''
+    avatar: user?.avatar_url || user?.avatar || ''
   });
   const [message, setMessage] = useState({ type: '', text: '' });
   const [saving, setSaving] = useState(false);
@@ -35,15 +41,15 @@ const Profile = () => {
   const cancelEdit = () => {
     setIsEditing(false);
     setFormData({
-      firstName: user?.firstName || '',
-      lastName: user?.lastName || '',
+      firstName: derivedFirst,
+      lastName: derivedLast,
       bio: user?.bio || '',
-      avatar: user?.avatar || ''
+      avatar: user?.avatar_url || user?.avatar || ''
     });
   };
 
-  const initials = (user?.firstName?.[0] || '') + (user?.lastName?.[0] || '');
-  const displayName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.name || 'User';
+  const initials = (derivedFirst[0] || '') + (derivedLast[0] || '');
+  const displayName = `${derivedFirst} ${derivedLast}`.trim() || user?.name || 'User';
 
   const roleColour = {
     student: 'badge-blue',
@@ -52,36 +58,36 @@ const Profile = () => {
   }[user?.role] || 'badge-gray';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pt-16">
       {/* Header banner */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-20">
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-10">
           <div className="flex items-center gap-5">
             <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 shadow-lg">
               {user?.avatar ? (
                 <img src={user.avatar} alt={displayName} className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full bg-cyan-600 flex items-center justify-center text-white text-2xl font-extrabold">
+                <div className="w-full h-full bg-blue-600 flex items-center justify-center text-white text-2xl font-extrabold">
                   {initials.toUpperCase() || <User className="h-8 w-8" />}
                 </div>
               )}
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold text-white tracking-tight">{displayName}</h1>
+              <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">{displayName}</h1>
               <div className="mt-1.5 flex items-center gap-2">
                 <span className={`${roleColour} capitalize`}>{user?.role}</span>
-                <span className="text-slate-400 text-sm">{user?.email}</span>
+                <span className="text-gray-500 text-sm">{user?.email}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 pb-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12">
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           {[
-            { icon: <BookOpen className="h-5 w-5 text-cyan-600" />, value: user?.enrolledCourses?.length || 0, label: 'Enrolled', bg: 'bg-cyan-100' },
+            { icon: <BookOpen className="h-5 w-5 text-blue-600" />, value: user?.enrollmentCount || user?.enrolledCourses?.length || 0, label: 'Enrolled', bg: 'bg-blue-100' },
             { icon: <Award className="h-5 w-5 text-emerald-600" />, value: user?.completedCourses?.length || 0, label: 'Completed', bg: 'bg-emerald-100' },
             { icon: <TrendingUp className="h-5 w-5 text-amber-600" />, value: `${user?.stats?.averageScore || 0}%`, label: 'Avg Score', bg: 'bg-amber-100' },
           ].map(s => (

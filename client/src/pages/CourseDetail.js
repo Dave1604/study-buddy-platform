@@ -1,10 +1,45 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Clock, BookOpen, Users, Award, CheckCircle, PlayCircle, Lock, ChevronRight } from 'lucide-react';
-import LoadingSpinner from '../components/LoadingSpinner';
+import { Clock, BookOpen, Users, Award, CheckCircle, PlayCircle, Lock, ChevronRight, ArrowLeft } from 'lucide-react';
 import { courseService, quizService, progressService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
+/* ── helpers ── */
+const fmt = (minutes) => {
+  const h = Math.floor((minutes || 0) / 60);
+  const m = Math.round((minutes || 0) % 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+};
+
+/* ── skeleton ── */
+const Skeleton = () => (
+  <div className="min-h-screen bg-gray-50 pt-16">
+    <div className="bg-white border-b border-gray-200">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="skeleton h-5 w-24 rounded mb-4" />
+        <div className="skeleton h-8 w-72 rounded-lg mb-3" />
+        <div className="skeleton h-4 w-96 rounded mb-6" />
+        <div className="flex gap-6">
+          {[1, 2, 3, 4].map(i => <div key={i} className="skeleton h-4 w-20 rounded" />)}
+        </div>
+      </div>
+    </div>
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
+      <div className="flex gap-2 mb-6">{[1, 2, 3].map(i => <div key={i} className="skeleton h-9 w-28 rounded-lg" />)}</div>
+      {[1, 2, 3].map(i => (
+        <div key={i} className="bg-white rounded-xl border border-gray-100 p-5 flex items-start gap-4">
+          <div className="skeleton w-9 h-9 rounded-xl flex-shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="skeleton h-4 w-48 rounded" />
+            <div className="skeleton h-3 w-72 rounded" />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+/* ── main component ── */
 const CourseDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -18,12 +53,6 @@ const CourseDetail = () => {
   const ytApiLoadedRef = useRef(false);
   const playersRef = useRef({});
   const [unavailableMap, setUnavailableMap] = useState({});
-
-  const formatMinutes = (minutes) => {
-    const hrs = Math.floor((minutes || 0) / 60);
-    const mins = Math.round((minutes || 0) % 60);
-    return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
-  };
 
   const loadYouTubeAPI = () => {
     if (ytApiLoadedRef.current || window.YT?.Player) return Promise.resolve();
@@ -62,7 +91,7 @@ const CourseDetail = () => {
     } finally {
       setLoading(false);
     }
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id]);
 
   useEffect(() => { fetchCourseData(); }, [fetchCourseData]);
 
@@ -79,7 +108,6 @@ const CourseDetail = () => {
     }
   }, [id, user]);
 
-  // YouTube player init — auto-complete lesson when video ends
   useEffect(() => {
     const initPlayers = async () => {
       if (!course || activeTab !== 'lessons' || !course.isEnrolled) return;
@@ -142,10 +170,10 @@ const CourseDetail = () => {
   const completionPct = progress?.completion_percentage || 0;
   const completedLessons = progress?.completed_lessons || [];
 
-  if (loading) return <LoadingSpinner message="Loading course..." />;
+  if (loading) return <Skeleton />;
   if (!course) return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="card text-center max-w-sm">
+    <div className="min-h-screen bg-gray-50 pt-16 flex items-center justify-center">
+      <div className="bg-white rounded-xl border border-gray-100 p-8 text-center max-w-sm shadow-sm">
         <p className="text-gray-500 mb-4">Course not found.</p>
         <Link to="/courses" className="btn-primary">Back to Courses</Link>
       </div>
@@ -153,7 +181,6 @@ const CourseDetail = () => {
   );
 
   const totalDuration = (course.lessons || []).reduce((sum, l) => sum + (l.duration || 0), 0);
-  const levelColor = course.level === 'beginner' ? 'bg-emerald-100 text-emerald-700' : course.level === 'intermediate' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700';
 
   const TABS = [
     { key: 'overview', label: 'Overview' },
@@ -162,72 +189,86 @@ const CourseDetail = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Dark header */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 text-white">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-            <span className="text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-white/10 text-slate-300">{course.category}</span>
-            {course.level && <span className={`text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-full ${levelColor}`}>{course.level}</span>}
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3">{course.title}</h1>
-          <p className="text-slate-300 text-base max-w-2xl leading-relaxed mb-6">{course.description}</p>
+    <div className="min-h-screen bg-gray-50 pt-16 animate-fade-in">
+      {/* ── Header ── */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          {/* Back link */}
+          <button onClick={() => navigate(-1)} className="opacity-0 animate-fade-up flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors mb-5">
+            <ArrowLeft className="h-4 w-4" /> Back
+          </button>
 
-          {/* Meta row */}
-          <div className="flex flex-wrap gap-5 text-sm text-slate-300 mb-8">
-            <span className="flex items-center gap-1.5"><BookOpen className="h-4 w-4" />{(course.lessons || []).length} lessons</span>
-            <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" />{formatMinutes(totalDuration)} total</span>
-            <span className="flex items-center gap-1.5"><Users className="h-4 w-4" />{course.totalEnrollments || 0} students</span>
-            <span className="flex items-center gap-1.5"><Award className="h-4 w-4" />{quizzes.length} {quizzes.length === 1 ? 'quiz' : 'quizzes'}</span>
+          {/* Badges */}
+          <div className="opacity-0 animate-fade-up flex flex-wrap items-center gap-2 mb-4" style={{ animationDelay: '50ms' }}>
+            <span className="text-xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 capitalize">{course.category}</span>
+            {course.level && (
+              <span className="text-xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 capitalize">{course.level}</span>
+            )}
+          </div>
+
+          {/* Title + description */}
+          <h1 className="opacity-0 animate-fade-up text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900 mb-2 leading-tight" style={{ animationDelay: '100ms' }}>{course.title}</h1>
+          <p className="opacity-0 animate-fade-up text-sm text-gray-500 max-w-2xl leading-relaxed mb-6" style={{ animationDelay: '150ms' }}>{course.description}</p>
+
+          {/* Meta */}
+          <div className="opacity-0 animate-fade-up flex flex-wrap gap-5 text-sm text-gray-500 mb-6" style={{ animationDelay: '200ms' }}>
+            <span className="flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5" />{(course.lessons || []).length} lessons</span>
+            <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{fmt(totalDuration)}</span>
+            <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />{course.totalEnrollments || 0} students</span>
+            <span className="flex items-center gap-1.5"><Award className="h-3.5 w-3.5" />{quizzes.length} {quizzes.length === 1 ? 'quiz' : 'quizzes'}</span>
           </div>
 
           {/* Instructor */}
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-full bg-cyan-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+          <div className="opacity-0 animate-fade-up flex items-center gap-3 mb-6" style={{ animationDelay: '250ms' }}>
+            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
               {(course.instructor?.name || 'I').charAt(0).toUpperCase()}
             </div>
             <div>
-              <p className="text-xs text-slate-400 uppercase tracking-wide">Instructor</p>
-              <p className="text-sm font-semibold">{course.instructor?.name || 'Instructor'}</p>
+              <p className="text-[11px] text-gray-500 uppercase tracking-wide leading-none mb-0.5">Instructor</p>
+              <p className="text-sm font-semibold text-gray-900">{course.instructor?.name || 'Instructor'}</p>
             </div>
           </div>
 
-          {/* Enroll / Progress */}
-          {!isEnrolled && (
-            <button
-              onClick={handleEnroll}
-              disabled={enrolling}
-              className="btn-primary text-base px-8 py-3 btn-shimmer hover-lift disabled:opacity-60"
-            >
-              {enrolling ? 'Enrolling...' : 'Enrol for Free'}
-            </button>
-          )}
-          {isEnrolled && (
-            <div className="flex items-center gap-4 bg-white/10 rounded-2xl px-5 py-4 max-w-sm">
-              <CheckCircle className="h-6 w-6 text-emerald-400 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white mb-1.5">Enrolled — {completionPct}% complete</p>
-                <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${completionPct}%` }} />
+          {/* CTA */}
+          <div className="opacity-0 animate-fade-up" style={{ animationDelay: '300ms' }}>
+            {!isEnrolled && (
+              <button
+                onClick={handleEnroll}
+                disabled={enrolling}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 active:scale-[0.97] transition-all duration-150 disabled:opacity-50"
+              >
+                {enrolling ? (
+                  <><span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> Enrolling...</>
+                ) : 'Enrol for Free'}
+              </button>
+            )}
+            {isEnrolled && (
+              <div className="flex items-center gap-3 bg-blue-50 rounded-xl px-4 py-3 max-w-xs">
+                <CheckCircle className="h-5 w-5 text-emerald-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 mb-1">Enrolled — {completionPct}% complete</p>
+                  <div className="h-1.5 bg-blue-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-600 rounded-full transition-all duration-700 ease-out" style={{ width: `${completionPct}%` }} />
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Tabs + content */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* ── Content ── */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Tab bar */}
-        <div className="flex gap-1 bg-white rounded-2xl border border-gray-100 shadow-sm p-1 mb-6 w-fit">
+        <div className="opacity-0 animate-fade-up flex gap-1 mb-6 border-b border-gray-200" style={{ animationDelay: '350ms' }}>
           {TABS.map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${
+              className={`px-4 py-2.5 text-sm font-semibold transition-colors duration-150 border-b-2 -mb-px ${
                 activeTab === tab.key
-                  ? 'bg-cyan-600 text-white shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-400 hover:text-gray-600'
               }`}
             >
               {tab.label}
@@ -237,45 +278,44 @@ const CourseDetail = () => {
 
         {/* Overview */}
         {activeTab === 'overview' && (
-          <div className="grid gap-6">
+          <div className="space-y-5">
             {course.learningObjectives?.length > 0 && (
-              <div className="card">
-                <h3 className="text-base font-bold text-gray-900 mb-4">What you'll learn</h3>
-                <ul className="grid sm:grid-cols-2 gap-3">
+              <div className="opacity-0 animate-fade-up bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+                <h3 className="text-sm font-bold text-gray-900 mb-3">What you'll learn</h3>
+                <ul className="grid sm:grid-cols-2 gap-2.5">
                   {course.learningObjectives.map((obj, i) => (
-                    <li key={i} className="flex items-start gap-2.5">
+                    <li key={i} className="opacity-0 animate-slide-right flex items-start gap-2" style={{ animationDelay: `${i * 50}ms` }}>
                       <CheckCircle className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm text-gray-700">{obj}</span>
+                      <span className="text-sm text-gray-600">{obj}</span>
                     </li>
                   ))}
                 </ul>
               </div>
             )}
             {course.prerequisites?.length > 0 && (
-              <div className="card">
-                <h3 className="text-base font-bold text-gray-900 mb-4">Prerequisites</h3>
+              <div className="opacity-0 animate-fade-up bg-white rounded-xl border border-gray-100 p-5 shadow-sm" style={{ animationDelay: '80ms' }}>
+                <h3 className="text-sm font-bold text-gray-900 mb-3">Prerequisites</h3>
                 <ul className="space-y-2">
                   {course.prerequisites.map((pre, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                      <ChevronRight className="h-4 w-4 text-cyan-500" />{pre}
+                    <li key={i} className="opacity-0 animate-slide-right flex items-center gap-2 text-sm text-gray-600" style={{ animationDelay: `${i * 50}ms` }}>
+                      <ChevronRight className="h-3.5 w-3.5 text-blue-500" />{pre}
                     </li>
                   ))}
                 </ul>
               </div>
             )}
-            {/* Course summary card if no objectives */}
             {!course.learningObjectives?.length && !course.prerequisites?.length && (
-              <div className="card">
-                <h3 className="text-base font-bold text-gray-900 mb-3">About this course</h3>
-                <p className="text-sm text-gray-600 leading-relaxed">{course.description}</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+              <div className="opacity-0 animate-fade-up bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+                <h3 className="text-sm font-bold text-gray-900 mb-2">About this course</h3>
+                <p className="text-sm text-gray-600 leading-relaxed mb-5">{course.description}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {[
                     { label: 'Lessons', value: (course.lessons || []).length },
-                    { label: 'Duration', value: formatMinutes(totalDuration) },
+                    { label: 'Duration', value: fmt(totalDuration) },
                     { label: 'Level', value: course.level || 'All levels' },
                     { label: 'Quizzes', value: quizzes.length },
-                  ].map(s => (
-                    <div key={s.label} className="bg-gray-50 rounded-xl p-3 text-center">
+                  ].map((s, i) => (
+                    <div key={s.label} className="opacity-0 animate-scale-up bg-gray-50 rounded-xl p-3 text-center" style={{ animationDelay: `${i * 70}ms` }}>
                       <p className="text-lg font-extrabold text-gray-900">{s.value}</p>
                       <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
                     </div>
@@ -298,55 +338,55 @@ const CourseDetail = () => {
               return (
                 <div
                   key={lesson._id}
-                  className="card cursor-pointer hover:border-cyan-200 transition-all"
+                  className="opacity-0 animate-fade-up bg-white rounded-xl border border-gray-100 p-4 hover:border-gray-200 hover:shadow-md transition-all duration-200 shadow-sm"
+                  style={{ animationDelay: `${index * 60}ms` }}
                   onClick={() => handleLessonClick(lesson._id)}
                 >
-                  <div className="flex items-start gap-4">
-                    {/* Number / status */}
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 ${isCompleted ? 'bg-emerald-100 text-emerald-600' : 'bg-cyan-50 text-cyan-600'}`}>
-                      {isCompleted ? <CheckCircle className="h-5 w-5" /> : index + 1}
+                  <div className="flex items-start gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0 ${isCompleted ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-500'}`}>
+                      {isCompleted ? <CheckCircle className="h-4 w-4" /> : index + 1}
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
                         <h4 className="text-sm font-semibold text-gray-900">{lesson.title}</h4>
                         <span className="text-xs text-gray-400 flex-shrink-0 flex items-center gap-1">
                           <Clock className="h-3 w-3" />{lesson.duration || 0}m
                         </span>
                       </div>
-                      <p className="text-xs text-gray-500 line-clamp-2 mb-3">
-                        {(lesson.content || lesson.description || '').substring(0, 140)}
-                      </p>
+                      {(lesson.content || lesson.description) && (
+                        <p className="text-xs text-gray-500 line-clamp-2 mb-2">
+                          {(lesson.content || lesson.description || '').substring(0, 140)}
+                        </p>
+                      )}
 
-                      {/* Video embed */}
                       {isEnrolled && videoId && (
                         <div className="mt-2">
                           {unavailableMap[lesson._id] && (
                             <p className="text-xs text-red-500 mb-2">Video unavailable — we'll replace this soon.</p>
                           )}
-                          <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: '12px', overflow: 'hidden' }}>
+                          <div className="relative pb-[56.25%] h-0 rounded-lg overflow-hidden bg-gray-100">
                             <iframe
                               id={`player-${lesson._id}`}
                               src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1`}
                               title={lesson.title}
                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                               allowFullScreen
-                              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: '12px' }}
+                              className="absolute inset-0 w-full h-full"
                             />
                           </div>
                         </div>
                       )}
 
                       {!isEnrolled && lesson.videoUrl && (
-                        <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2 w-fit">
-                          <Lock className="h-3 w-3" /> Video available after enrolment
+                        <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2 w-fit mt-1">
+                          <Lock className="h-3 w-3" /> Enrol to watch
                         </div>
                       )}
 
-                      {/* Mark complete button */}
                       {isEnrolled && !isCompleted && (
                         <button
-                          className="mt-3 text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+                          className="mt-2 text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 transition-colors"
                           onClick={(e) => { e.stopPropagation(); handleLessonComplete(lesson._id, (lesson.duration || 0) * 60); }}
                         >
                           <CheckCircle className="h-3.5 w-3.5" /> Mark as complete
@@ -354,13 +394,12 @@ const CourseDetail = () => {
                       )}
                     </div>
 
-                    {/* Right icon */}
                     <div className="flex-shrink-0 mt-0.5">
                       {isCompleted
-                        ? <CheckCircle className="h-5 w-5 text-emerald-500" />
+                        ? <CheckCircle className="h-4 w-4 text-emerald-500" />
                         : isEnrolled
-                        ? <PlayCircle className="h-5 w-5 text-cyan-400" />
-                        : <Lock className="h-4 w-4 text-gray-300" />}
+                        ? <PlayCircle className="h-4 w-4 text-blue-400" />
+                        : <Lock className="h-3.5 w-3.5 text-gray-300" />}
                     </div>
                   </div>
                 </div>
@@ -371,49 +410,45 @@ const CourseDetail = () => {
 
         {/* Quizzes */}
         {activeTab === 'quizzes' && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {quizzes.length === 0 ? (
-              <div className="card text-center py-12">
-                <Award className="h-10 w-10 text-gray-200 mx-auto mb-3" />
+              <div className="opacity-0 animate-fade-up bg-white rounded-xl border border-gray-100 p-12 text-center shadow-sm">
+                <Award className="h-8 w-8 text-gray-200 mx-auto mb-3" />
                 <p className="text-sm text-gray-400">No quizzes for this course yet.</p>
               </div>
-            ) : quizzes.map((quiz) => {
-              const diffColor = quiz.difficulty === 'easy'
-                ? 'bg-emerald-100 text-emerald-700'
-                : quiz.difficulty === 'hard'
-                ? 'bg-red-100 text-red-700'
-                : 'bg-amber-100 text-amber-700';
-
-              return (
-                <div key={quiz._id || quiz.id} className="card">
-                  <div className="flex items-start justify-between gap-4 mb-2">
-                    <h4 className="text-base font-bold text-gray-900">{quiz.title}</h4>
-                    {quiz.difficulty && (
-                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${diffColor}`}>
-                        {quiz.difficulty}
-                      </span>
-                    )}
-                  </div>
-                  {quiz.description && <p className="text-sm text-gray-500 mb-4">{quiz.description}</p>}
-                  <div className="flex flex-wrap gap-4 text-xs text-gray-500 mb-4">
-                    <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{quiz.time_limit_minutes || quiz.duration || 10} min</span>
-                    <span className="flex items-center gap-1"><Award className="h-3.5 w-3.5" />{quiz.passing_score || quiz.passingScore || 70}% to pass</span>
-                  </div>
-                  {isEnrolled ? (
-                    <button
-                      onClick={() => navigate(`/quiz/${quiz._id || quiz.id}`)}
-                      className="btn-primary text-sm"
-                    >
-                      Start Quiz
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-2 text-xs text-gray-400">
-                      <Lock className="h-3.5 w-3.5" /> Enrol to take this quiz
-                    </div>
+            ) : quizzes.map((quiz, qi) => (
+              <div key={quiz._id || quiz.id} className="opacity-0 animate-fade-up bg-white rounded-xl border border-gray-100 p-5 shadow-sm hover:border-gray-200 hover:shadow-md transition-all duration-200" style={{ animationDelay: `${qi * 60}ms` }}>
+                <div className="flex items-start justify-between gap-3 mb-1">
+                  <h4 className="text-sm font-bold text-gray-900">{quiz.title}</h4>
+                  {quiz.difficulty && (
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-lg flex-shrink-0 capitalize ${
+                      quiz.difficulty === 'easy' ? 'bg-emerald-50 text-emerald-600'
+                        : quiz.difficulty === 'hard' ? 'bg-red-50 text-red-600'
+                        : 'bg-amber-50 text-amber-600'
+                    }`}>
+                      {quiz.difficulty}
+                    </span>
                   )}
                 </div>
-              );
-            })}
+                {quiz.description && <p className="text-sm text-gray-500 mb-3">{quiz.description}</p>}
+                <div className="flex flex-wrap gap-4 text-xs text-gray-400 mb-4">
+                  <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{quiz.time_limit_minutes || quiz.duration || 10} min</span>
+                  <span className="flex items-center gap-1"><Award className="h-3.5 w-3.5" />{quiz.passing_score || quiz.passingScore || 70}% to pass</span>
+                </div>
+                {isEnrolled ? (
+                  <button
+                    onClick={() => navigate(`/quiz/${quiz._id || quiz.id}`)}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 active:scale-[0.97] transition-all duration-150"
+                  >
+                    Start Quiz
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                    <Lock className="h-3.5 w-3.5" /> Enrol to take this quiz
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>

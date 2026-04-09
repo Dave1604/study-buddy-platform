@@ -1,7 +1,7 @@
 /* Admin Dashboard Styles */
 .admin-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #f8fafc;
   padding: 2rem 0;
 }
 
@@ -31,7 +31,7 @@
 .admin-title h1 {
   font-size: 2.5rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #2563eb;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   margin: 0;
@@ -79,7 +79,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #667eea, #764ba2);
+  background: #2563eb;
 }
 
 .stat-header {
@@ -96,7 +96,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #2563eb;
   color: white;
 }
 
@@ -184,11 +184,11 @@
 
 .tab:hover {
   background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
+  color: #2563eb;
 }
 
 .tab.active {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #2563eb;
   color: white;
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
 }
@@ -307,7 +307,7 @@
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #2563eb;
   color: white;
   display: flex;
   align-items: center;
@@ -355,7 +355,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #2563eb;
   color: white;
   display: flex;
   align-items: center;
@@ -434,15 +434,15 @@
 }
 
 .bar-fill.students {
-  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  background: #2563eb;
 }
 
 .bar-fill.instructors {
-  background: linear-gradient(90deg, #f59e0b, #d97706);
+  background: #f59e0b;
 }
 
 .bar-fill.admins {
-  background: linear-gradient(90deg, #ef4444, #dc2626);
+  background: #ef4444;
 }
 
 .bar-value {
@@ -493,7 +493,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #2563eb;
   color: white;
   display: flex;
   align-items: center;
@@ -507,8 +507,8 @@
   color: #1f2937;
 }
 
-/* Badges */
-.badge {
+/* Admin Badges */
+.admin-page .admin-badge {
   padding: 0.25rem 0.75rem;
   border-radius: 20px;
   font-size: 0.8rem;
@@ -610,7 +610,7 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #2563eb;
   color: white;
   display: flex;
   align-items: center;
@@ -714,23 +714,23 @@
   text-decoration: none;
 }
 
-.btn-primary {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+.admin-page .btn-admin-primary {
+  background: #2563eb;
   color: white;
 }
 
-.btn-primary:hover {
+.admin-page .btn-admin-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
 }
 
-.btn-secondary {
+.admin-page .btn-admin-secondary {
   background: #f3f4f6;
   color: #374151;
   border: 1px solid #d1d5db;
 }
 
-.btn-secondary:hover {
+.admin-page .btn-admin-secondary:hover {
   background: #e5e7eb;
 }
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import PrivateRoute from './components/PrivateRoute';
@@ -35,13 +35,13 @@ const DashboardRouter = () => {
   return <Dashboard />;
 };
 
-function App() {
+const AppLayout = () => {
+  const location = useLocation();
+  const hideNavbar = ['/login', '/register'].includes(location.pathname);
   return (
-    <Router>
-      <AuthProvider>
-        <div className="App">
-          <Navbar />
-          <Routes>
+    <>
+      {!hideNavbar && <Navbar />}
+      <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
@@ -116,7 +116,15 @@ function App() {
             {/* Catch all */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </div>
+    </>
+  );
+};
+
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <AppLayout />
       </AuthProvider>
     </Router>
   );

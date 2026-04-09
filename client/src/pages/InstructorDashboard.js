@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Users, BookOpen, Clock, Award, BarChart3, Edit, Trash2, TrendingUp } from 'lucide-react';
-import LoadingSpinner from '../components/LoadingSpinner';
 import InstructorAnalytics from '../components/InstructorAnalytics';
 import { courseService, progressService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -52,7 +51,7 @@ const InstructorDashboard = () => {
       const coursesRes = await courseService.getAllCourses();
       const allCourses = coursesRes.data?.data?.courses || [];
       const instructorCourses = allCourses.filter(
-        course => (course.instructor?._id || course.instructor) === user.id
+        course => (course.instructor?.id || course.instructor_id) === user.id
       );
       setCourses(instructorCourses);
 
@@ -62,7 +61,7 @@ const InstructorDashboard = () => {
       let scoreCount = 0;
 
       for (const course of instructorCourses) {
-        totalStudents += course.enrolledStudents?.length || 0;
+        totalStudents += course.enrolled_count || 0;
         try {
           const progressRes = await progressService.getCourseProgress(course._id);
           const progressData = progressRes.data.data.progress;
@@ -107,29 +106,62 @@ const InstructorDashboard = () => {
     }
   };
 
-  if (loading) return <LoadingSpinner message="Loading instructor dashboard..." />;
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 pt-16">
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="skeleton h-3 w-32 mb-2 rounded-full" />
+          <div className="skeleton h-7 w-52 rounded-lg" />
+        </div>
+      </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+              <div className="skeleton w-12 h-12 rounded-2xl flex-shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="skeleton h-6 w-14 rounded" />
+                <div className="skeleton h-3 w-20 rounded-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="card space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 p-4">
+              <div className="skeleton w-10 h-10 rounded-xl flex-shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="skeleton h-3.5 w-52 rounded-full" />
+                <div className="skeleton h-3 w-36 rounded-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Dark header */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 animate-gradient text-white">
+    <div className="min-h-screen bg-gray-50 pt-16">
+      {/* Clean white header */}
+      <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <p className="text-slate-400 text-sm mb-1">Instructor Dashboard</p>
-              <h1 className="text-3xl font-extrabold tracking-tight">Welcome back, {displayName}!</h1>
-              <p className="text-slate-400 text-sm mt-1">Here's your teaching overview.</p>
+              <p className="text-gray-500 text-sm mb-1">Instructor Dashboard</p>
+              <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">Welcome back, {displayName}!</h1>
+              <p className="text-gray-500 text-sm mt-1">Here's your teaching overview.</p>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               <button
-                className="btn-outline-white"
+                className="btn-outline-blue"
                 onClick={() => setShowAnalytics(!showAnalytics)}
               >
                 <BarChart3 className="h-4 w-4" />
                 {showAnalytics ? 'Hide Analytics' : 'View Analytics'}
               </button>
               <button
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-cyan-700 text-sm font-semibold rounded-lg hover:bg-cyan-50 transition-all shadow-sm"
+                className="btn-primary"
                 onClick={() => navigate('/instructor/create-course')}
               >
                 <Plus className="h-4 w-4" /> Create Course
@@ -141,8 +173,8 @@ const InstructorDashboard = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 -mt-8 mb-8">
-          <StatCard delay={0} icon={<BookOpen className="h-6 w-6 text-cyan-600" />} value={stats.totalCourses} label="Active Courses" iconBg="bg-cyan-100" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <StatCard delay={0} icon={<BookOpen className="h-6 w-6 text-blue-600" />} value={stats.totalCourses} label="Active Courses" iconBg="bg-blue-100" />
           <StatCard delay={80} icon={<Users className="h-6 w-6 text-violet-600" />} value={stats.totalStudents} label="Total Students" iconBg="bg-violet-100" />
           <StatCard delay={160} icon={<Clock className="h-6 w-6 text-amber-600" />} value={`${stats.totalHours}h`} label="Learning Hours" iconBg="bg-amber-100" />
           <StatCard delay={240} icon={<Award className="h-6 w-6 text-emerald-600" />} value={`${stats.avgScore}%`} label="Avg Quiz Score" iconBg="bg-emerald-100" />
@@ -162,7 +194,7 @@ const InstructorDashboard = () => {
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-base font-bold text-gray-900">My Courses</h2>
               <button
-                className="text-xs font-semibold text-cyan-600 hover:text-cyan-700 transition-colors"
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
                 onClick={() => navigate('/instructor/courses')}
               >
                 View all
@@ -188,19 +220,19 @@ const InstructorDashboard = () => {
                       <img src={course.thumbnail} alt={course.title} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate group-hover:text-cyan-600 transition-colors">{course.title}</p>
+                      <p className="text-sm font-semibold text-gray-800 truncate group-hover:text-blue-600 transition-colors">{course.title}</p>
                       <div className="flex items-center gap-3 mt-0.5">
                         <span className="flex items-center gap-1 text-xs text-gray-400">
-                          <Users className="h-3 w-3" /> {course.enrolledStudents?.length || 0} students
+                          <Users className="h-3 w-3" /> {course.enrolled_count || 0} students
                         </span>
                         <span className="flex items-center gap-1 text-xs text-gray-400">
-                          <BookOpen className="h-3 w-3" /> {course.lessons?.length || 0} lessons
+                          <BookOpen className="h-3 w-3" /> {course.lesson_count || 0} lessons
                         </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       <button
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-cyan-100 hover:text-cyan-600 transition-colors"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-blue-100 hover:text-blue-600 transition-colors"
                         onClick={() => navigate(`/instructor/edit-course/${course._id}`)}
                         title="Edit course"
                       >
@@ -241,7 +273,7 @@ const InstructorDashboard = () => {
                   <button
                     key={item.label}
                     onClick={item.action}
-                    className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-100 hover:border-cyan-200 hover:bg-cyan-50 text-gray-600 hover:text-cyan-700 transition-all text-xs font-semibold"
+                    className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50 text-gray-600 hover:text-blue-700 transition-all text-xs font-semibold"
                   >
                     {item.icon}
                     {item.label}
@@ -255,7 +287,7 @@ const InstructorDashboard = () => {
               <h3 className="text-base font-bold text-gray-900 mb-4">Recent Activity</h3>
               <div className="space-y-3">
                 {[
-                  { icon: <Users className="h-4 w-4 text-cyan-600" />, bg: 'bg-cyan-100', text: 'New student enrolled in JavaScript course', time: '2 hours ago' },
+                  { icon: <Users className="h-4 w-4 text-blue-600" />, bg: 'bg-blue-100', text: 'New student enrolled in JavaScript course', time: '2 hours ago' },
                   { icon: <Award className="h-4 w-4 text-emerald-600" />, bg: 'bg-emerald-100', text: 'Student completed React quiz', time: '5 hours ago' },
                   { icon: <BookOpen className="h-4 w-4 text-violet-600" />, bg: 'bg-violet-100', text: 'Course updated: UI/UX Design', time: '1 day ago' },
                 ].map((item, i) => (

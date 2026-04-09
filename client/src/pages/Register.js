@@ -55,24 +55,20 @@ const Register = () => {
   return (
     <div className="min-h-screen flex">
       {/* Left panel */}
-      <div className="hidden lg:flex lg:w-5/12 bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 flex-col justify-between p-12 relative overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-32 -right-32 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl" />
-          <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl" />
-        </div>
+      <div className="hidden lg:flex lg:w-5/12 bg-blue-600 flex-col justify-between p-12 relative overflow-hidden">
         <div className="relative z-10">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-cyan-600 rounded-xl flex items-center justify-center">
+            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center border border-white/20">
               <BookOpen style={{ width: 18, height: 18, color: 'white' }} />
             </div>
-            <span className="font-extrabold text-xl text-white tracking-tight">Study<span className="text-cyan-400">Buddy</span></span>
+            <span className="font-extrabold text-xl text-white tracking-tight">Study<span className="text-blue-200">Buddy</span></span>
           </Link>
         </div>
         <div className="relative z-10">
           <h2 className="text-3xl font-extrabold text-white leading-tight mb-4 tracking-tight">
-            Start learning.<br /><span className="text-cyan-400">It's completely free.</span>
+            Start learning.<br /><span className="text-blue-200">It's completely free.</span>
           </h2>
-          <p className="text-slate-400 text-sm leading-relaxed mb-8">Create your account and get immediate access to courses, quizzes, and your personal learning dashboard.</p>
+          <p className="text-blue-100 text-sm leading-relaxed mb-8">Create your account and get immediate access to courses, quizzes, and your personal learning dashboard.</p>
           <div className="grid grid-cols-2 gap-4">
             {[
               { value: '30+', label: 'Free courses' },
@@ -80,24 +76,24 @@ const Register = () => {
               { value: '3', label: 'Question types' },
               { value: '∞', label: 'Retakes allowed' }
             ].map(s => (
-              <div key={s.label} className="bg-white/5 rounded-2xl p-4 border border-white/10">
+              <div key={s.label} className="bg-white/10 rounded-2xl p-4 border border-white/20">
                 <p className="text-2xl font-extrabold text-white">{s.value}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{s.label}</p>
+                <p className="text-xs text-blue-100 mt-0.5">{s.label}</p>
               </div>
             ))}
           </div>
         </div>
-        <p className="relative z-10 text-xs text-slate-500">© {new Date().getFullYear()} StudyBuddy · Arden University FYP</p>
+        <p className="relative z-10 text-xs text-blue-200">© {new Date().getFullYear()} StudyBuddy · Arden University FYP</p>
       </div>
 
       {/* Right panel */}
       <div className="flex-1 flex items-center justify-center px-6 py-12 bg-gray-50">
         <div className="w-full max-w-sm">
           <div className="flex items-center justify-center gap-2 mb-8 lg:hidden">
-            <div className="w-8 h-8 bg-cyan-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <BookOpen style={{ width: 17, height: 17, color: 'white' }} />
             </div>
-            <span className="font-extrabold text-lg text-gray-900">Study<span className="text-cyan-600">Buddy</span></span>
+            <span className="font-extrabold text-lg text-gray-900">Study<span className="text-blue-600">Buddy</span></span>
           </div>
           <div className="mb-8">
             <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Create your account</h1>
@@ -219,7 +215,7 @@ const Register = () => {
                 <button
                   type="button"
                   onClick={() => setFormData(p => ({ ...p, role: 'student' }))}
-                  className={`flex flex-col items-center gap-2 py-4 px-3 rounded-xl border-2 text-sm font-semibold transition-all ${formData.role === 'student' ? 'border-cyan-500 bg-cyan-50 text-cyan-700' : 'border-gray-200 text-gray-600 hover:border-gray-300 bg-white'}`}
+                  className={`flex flex-col items-center gap-2 py-4 px-3 rounded-xl border-2 text-sm font-semibold transition-all ${formData.role === 'student' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-gray-300 bg-white'}`}
                   aria-pressed={formData.role === 'student'}
                 >
                   <GraduationCap className="h-5 w-5" /> Student
@@ -227,7 +223,7 @@ const Register = () => {
                 <button
                   type="button"
                   onClick={() => setFormData(p => ({ ...p, role: 'instructor' }))}
-                  className={`flex flex-col items-center gap-2 py-4 px-3 rounded-xl border-2 text-sm font-semibold transition-all ${formData.role === 'instructor' ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-600 hover:border-gray-300 bg-white'}`}
+                  className={`flex flex-col items-center gap-2 py-4 px-3 rounded-xl border-2 text-sm font-semibold transition-all duration-150 ${formData.role === 'instructor' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-gray-300 bg-white'}`}
                   aria-pressed={formData.role === 'instructor'}
                 >
                   <MonitorPlay className="h-5 w-5" /> Instructor
@@ -251,7 +247,7 @@ const Register = () => {
           </form>
           <p className="mt-5 text-center text-sm text-gray-500">
             Already have an account?{' '}
-            <Link to="/login" className="text-cyan-600 font-semibold hover:text-cyan-700 transition-colors">Sign in</Link>
+            <Link to="/login" className="text-blue-600 font-semibold hover:text-blue-700 transition-colors">Sign in</Link>
           </p>
           <p className="mt-4 text-center text-xs text-gray-400">By creating an account you agree to our terms of use.</p>
         </div>
