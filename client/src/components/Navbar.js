@@ -44,7 +44,7 @@ const Navbar = () => {
     <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 flex-shrink-0">
+        <Link to="/" aria-label="StudyBuddy home" className="flex items-center gap-2 flex-shrink-0">
           <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center">
             <BookOpen aria-hidden="true" style={{ width: 16, height: 16, color: 'white' }} />
           </div>
@@ -55,7 +55,7 @@ const Navbar = () => {
 
         {/* Center nav links (desktop) */}
         {isAuthenticated && (
-          <nav className="hidden md:flex items-center gap-1">
+          <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1">
             <Link to="/dashboard" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/dashboard' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>Dashboard</Link>
             {user?.role !== 'admin' && (
               <Link to="/courses" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname.startsWith('/courses') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>Courses</Link>
@@ -79,6 +79,8 @@ const Navbar = () => {
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                   className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-gray-100 transition-colors"
                   aria-expanded={dropdownOpen}
+                  aria-haspopup="true"
+                  aria-controls="user-dropdown"
                   aria-label="User menu"
                 >
                   <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
@@ -92,30 +94,30 @@ const Navbar = () => {
                 </button>
 
                 {dropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-scale-in">
+                  <div id="user-dropdown" role="menu" className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-scale-in">
                     <div className="px-4 py-2 border-b border-gray-100 mb-1">
                       <p className="text-sm font-semibold text-gray-800 truncate">{displayName}</p>
                       <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                     </div>
-                    <Link to="/dashboard" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                      <LayoutDashboard className="h-4 w-4 text-gray-400" /> Dashboard
+                    <Link role="menuitem" to="/dashboard" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                      <LayoutDashboard aria-hidden="true" className="h-4 w-4 text-gray-400" /> Dashboard
                     </Link>
                     {user?.role !== 'admin' && (
-                      <Link to="/courses" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                        <BookMarked className="h-4 w-4 text-gray-400" /> Courses
+                      <Link role="menuitem" to="/courses" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <BookMarked aria-hidden="true" className="h-4 w-4 text-gray-400" /> Courses
                       </Link>
                     )}
-                    <Link to="/profile" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                      <User className="h-4 w-4 text-gray-400" /> Profile
+                    <Link role="menuitem" to="/profile" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                      <User aria-hidden="true" className="h-4 w-4 text-gray-400" /> Profile
                     </Link>
                     {user?.role === 'admin' && (
-                      <Link to="/admin" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                        <ShieldCheck className="h-4 w-4 text-gray-400" /> Admin
+                      <Link role="menuitem" to="/admin" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <ShieldCheck aria-hidden="true" className="h-4 w-4 text-gray-400" /> Admin
                       </Link>
                     )}
                     <div className="border-t border-gray-100 mt-1 pt-1">
-                      <button onClick={handleLogout} className="flex items-center gap-2.5 px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors w-full">
-                        <LogOut className="h-4 w-4" /> Sign out
+                      <button role="menuitem" onClick={handleLogout} className="flex items-center gap-2.5 px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors w-full">
+                        <LogOut aria-hidden="true" className="h-4 w-4" /> Sign out
                       </button>
                     </div>
                   </div>

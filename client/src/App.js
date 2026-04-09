@@ -41,6 +41,7 @@ const AppLayout = () => {
   return (
     <>
       {!hideNavbar && <Navbar />}
+      <main id="main-content">
       <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Home />} />
@@ -116,6 +117,7 @@ const AppLayout = () => {
             {/* Catch all */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+      </main>
     </>
   );
 };
