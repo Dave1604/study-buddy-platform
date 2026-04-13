@@ -61,6 +61,7 @@ const Quiz = () => {
     try {
       const response = await quizService.getQuiz(id);
       const quizData = response.data.data.quiz;
+      quizData.passingScore = quizData.passingScore ?? quizData.passing_score ?? 70;
       // Normalise snake_case DB fields → camelCase used in this component
       quizData.questions = shuffleArray(quizData.questions || []).map(question => {
         const opts = (question.options || []).map(o => ({
@@ -165,7 +166,7 @@ const Quiz = () => {
               {[
                 { value: `${result.percentage}%`, label: 'Your Score' },
                 { value: `${result.score}/${result.totalPoints}`, label: 'Points Earned' },
-                { value: `${quiz.passingScore}%`, label: 'Passing Score' },
+                { value: `${result.passingScore ?? quiz.passingScore}%`, label: 'Passing Score' },
               ].map(s => (
                 <div key={s.label} className="bg-gray-50 rounded-xl p-4">
                   <p className="text-xl font-extrabold text-gray-900">{s.value}</p>

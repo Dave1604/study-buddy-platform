@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { courseService } from '../services/api';
 import useCountUp from '../hooks/useCountUp';
 import useInView from '../hooks/useInView';
 import {
@@ -9,8 +9,6 @@ import {
   Award, Users, Clock, Play, TrendingUp, Shield, ChevronLeft, ChevronRight,
   Code2, Palette, Atom, Calculator, Globe, Lightbulb
 } from 'lucide-react';
-
-const API = '/api';
 
 const CATEGORY_THEME = {
   programming: { gradient: 'from-blue-600 to-indigo-700', icon: <Code2 className="h-14 w-14 text-white/30" />, badge: 'bg-blue-100 text-blue-700' },
@@ -85,11 +83,13 @@ const Home = () => {
   const autoRef = useRef(null);
 
   useEffect(() => {
-    axios.get(`${API}/courses`).then(res => {
-      const data = res.data;
-      const list = data.courses || data.data?.courses || [];
-      setCourses(list);
-    }).catch(() => {});
+    courseService
+      .getAllCourses()
+      .then((res) => {
+        const list = res.data?.data?.courses || res.data?.courses || [];
+        setCourses(list);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -105,10 +105,15 @@ const Home = () => {
   const next = () => goTo((carouselIdx + 1) % courses.length);
 
   useEffect(() => {
-    const el = carouselRef.current;
-    if (!el || courses.length === 0) return;
-    const card = el.children[carouselIdx];
-    if (card) card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    const container = carouselRef.current;
+    if (!container || courses.length === 0) return;
+    const card = container.children[carouselIdx];
+    if (!card) return;
+    const cardLeft = card.offsetLeft;
+    const cardWidth = card.offsetWidth;
+    const w = container.clientWidth;
+    const left = cardLeft - (w - cardWidth) / 2;
+    container.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
   }, [carouselIdx, courses.length]);
 
   const [heroRef, heroInView] = useInView(0.05);

@@ -48,11 +48,8 @@ const InstructorDashboard = () => {
 
   const fetchInstructorData = useCallback(async () => {
     try {
-      const coursesRes = await courseService.getAllCourses();
-      const allCourses = coursesRes.data?.data?.courses || [];
-      const instructorCourses = allCourses.filter(
-        course => (course.instructor?.id || course.instructor_id) === user.id
-      );
+      const coursesRes = await courseService.getInstructorCourses();
+      const instructorCourses = coursesRes.data?.data?.courses || [];
       setCourses(instructorCourses);
 
       let totalStudents = 0;
@@ -61,9 +58,10 @@ const InstructorDashboard = () => {
       let scoreCount = 0;
 
       for (const course of instructorCourses) {
+        const cid = course.id || course._id;
         totalStudents += course.enrolled_count || 0;
         try {
-          const progressRes = await progressService.getCourseProgress(course._id);
+          const progressRes = await progressService.getCourseProgress(cid);
           const progressData = progressRes.data.data.progress;
           if (progressData) {
             totalHours += (progressData.timeSpent || 0) / 60;
@@ -90,7 +88,7 @@ const InstructorDashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [user.id]);
+  }, []);
 
   useEffect(() => { fetchInstructorData(); }, [fetchInstructorData]);
 
@@ -195,7 +193,7 @@ const InstructorDashboard = () => {
               <h2 className="text-base font-bold text-gray-900">My Courses</h2>
               <button
                 className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
-                onClick={() => navigate('/instructor/courses')}
+                onClick={() => navigate('/courses')}
               >
                 View all
               </button>
@@ -214,8 +212,10 @@ const InstructorDashboard = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {courses.map(course => (
-                  <div key={course._id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 transition-colors group hover-lift">
+                {courses.map(course => {
+                  const courseId = course.id || course._id;
+                  return (
+                  <div key={courseId} className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 transition-colors group hover-lift">
                     {course.thumbnail && (
                       <img src={course.thumbnail} alt={course.title} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
                     )}
@@ -233,28 +233,29 @@ const InstructorDashboard = () => {
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       <button
                         className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-blue-100 hover:text-blue-600 transition-colors"
-                        onClick={() => navigate(`/instructor/edit-course/${course._id}`)}
+                        onClick={() => navigate(`/instructor/edit-course/${courseId}`)}
                         title="Edit course"
                       >
                         <Edit className="h-3.5 w-3.5" />
                       </button>
                       <button
                         className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-blue-100 hover:text-blue-600 transition-colors"
-                        onClick={() => navigate(`/courses/${course._id}`)}
+                        onClick={() => navigate(`/courses/${courseId}`)}
                         title="View course"
                       >
                         <BarChart3 className="h-3.5 w-3.5" />
                       </button>
                       <button
                         className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-100 hover:text-red-500 transition-colors"
-                        onClick={() => handleDeleteCourse(course._id, course.title)}
+                        onClick={() => handleDeleteCourse(courseId, course.title)}
                         title="Delete course"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
-                ))}
+                );
+                })}
               </div>
             )}
           </div>
@@ -266,7 +267,7 @@ const InstructorDashboard = () => {
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { icon: <Plus className="h-5 w-5" />, label: 'Create Course', action: () => navigate('/instructor/create-course') },
-                  { icon: <Users className="h-5 w-5" />, label: 'View Students', action: () => navigate('/instructor/students') },
+                  { icon: <Users className="h-5 w-5" />, label: 'View Students', action: () => navigate('/courses') },
                   { icon: <TrendingUp className="h-5 w-5" />, label: 'Analytics', action: () => setShowAnalytics(true) },
                   { icon: <BookOpen className="h-5 w-5" />, label: 'Courses', action: () => navigate('/courses') },
                 ].map(item => (

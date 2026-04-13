@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { BookOpen, ChevronDown, Menu, X, LayoutDashboard, BookMarked, User, LogOut, ShieldCheck } from 'lucide-react';
+import { BookOpen, ChevronDown, Menu, X, LayoutDashboard, BookMarked, User, LogOut, ShieldCheck, PlusCircle } from 'lucide-react';
 
 const Navbar = () => {
   const { user, logout, isAuthenticated } = useAuth();
@@ -60,7 +60,7 @@ const Navbar = () => {
             {user?.role !== 'admin' && (
               <Link to="/courses" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname.startsWith('/courses') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>Courses</Link>
             )}
-            {user?.role === 'instructor' && (
+            {(user?.role === 'instructor' || user?.role === 'admin') && (
               <Link to="/instructor/create-course" className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname.includes('create-course') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>Create course</Link>
             )}
             {user?.role === 'admin' && (
@@ -107,6 +107,11 @@ const Navbar = () => {
                         <BookMarked aria-hidden="true" className="h-4 w-4 text-gray-400" /> Courses
                       </Link>
                     )}
+                    {(user?.role === 'instructor' || user?.role === 'admin') && (
+                      <Link role="menuitem" to="/instructor/create-course" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <PlusCircle aria-hidden="true" className="h-4 w-4 text-gray-400" /> Create course
+                      </Link>
+                    )}
                     <Link role="menuitem" to="/profile" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                       <User aria-hidden="true" className="h-4 w-4 text-gray-400" /> Profile
                     </Link>
@@ -151,7 +156,7 @@ const Navbar = () => {
             <Link to="/courses" className="px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-100 flex items-center gap-2"><BookMarked className="h-4 w-4" /> Courses</Link>
           )}
           <Link to="/profile" className="px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-100 flex items-center gap-2"><User className="h-4 w-4" /> Profile</Link>
-          {user?.role === 'instructor' && (
+          {(user?.role === 'instructor' || user?.role === 'admin') && (
             <Link to="/instructor/create-course" className="px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-100">Create course</Link>
           )}
           {user?.role === 'admin' && (

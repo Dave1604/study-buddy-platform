@@ -15,6 +15,56 @@ import {
 import { progressService } from '../services/api';
 import './InstructorAnalytics.css';
 
+/** Maps Supabase API shape to the UI model (legacy Mongo-style responses still supported). */
+function normalizeAnalyticsPayload(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  if (raw.overview && typeof raw.overview === 'object') {
+    return {
+      overview: {
+        totalCourses: raw.overview.totalCourses ?? 0,
+        totalStudents: raw.overview.totalStudents ?? 0,
+        averageCompletionRate: raw.overview.averageCompletionRate ?? 0,
+        averageQuizScore: raw.overview.averageQuizScore ?? 0,
+        totalLearningHours: raw.overview.totalLearningHours ?? 0,
+        totalEnrollments: raw.overview.totalEnrollments ?? 0,
+      },
+      categoryBreakdown: raw.categoryBreakdown && typeof raw.categoryBreakdown === 'object' ? raw.categoryBreakdown : {},
+      courseAnalytics: Array.isArray(raw.courseAnalytics) ? raw.courseAnalytics : [],
+      studentPerformance: Array.isArray(raw.studentPerformance) ? raw.studentPerformance : [],
+      recentActivity: Array.isArray(raw.recentActivity) ? raw.recentActivity : [],
+    };
+  }
+
+  const courses = Array.isArray(raw.courses) ? raw.courses : [];
+  const totalEnrollments = courses.reduce((s, c) => s + (Number(c.enrolled) || 0), 0);
+  const avgScore = Number(raw.avg_score) || 0;
+
+  return {
+    overview: {
+      totalCourses: courses.length,
+      totalStudents: Number(raw.total_students) || 0,
+      averageCompletionRate: Number(raw.avg_completion) || 0,
+      averageQuizScore: avgScore,
+      totalLearningHours: 0,
+      totalEnrollments,
+    },
+    categoryBreakdown: {},
+    courseAnalytics: courses.map((c) => ({
+      courseId: c.course_id || c.courseId || c.id,
+      courseTitle: c.title || c.courseTitle || 'Course',
+      level: c.level || '—',
+      category: c.category || '—',
+      enrolledStudents: Number(c.enrolled ?? c.enrolledStudents) || 0,
+      completedStudents: Number(c.completed_count ?? c.completedStudents) || 0,
+      completionRate: Number(c.avg_completion ?? c.completionRate) || 0,
+      averageQuizScore: Number(c.avg_quiz_score ?? c.averageQuizScore) || avgScore,
+      totalLearningHours: Number(c.total_learning_hours ?? c.totalLearningHours) || 0,
+    })),
+    studentPerformance: [],
+    recentActivity: [],
+  };
+}
+
 const InstructorAnalytics = () => {
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState(null);
@@ -28,9 +78,12 @@ const InstructorAnalytics = () => {
     try {
       setLoading(true);
       const response = await progressService.getInstructorAnalytics();
-      setAnalytics(response.data.data);
+      const body = response.data?.data;
+      const raw = body?.analytics ?? body;
+      setAnalytics(normalizeAnalyticsPayload(raw));
     } catch (error) {
       console.error('Error fetching analytics:', error);
+      setAnalytics(null);
     } finally {
       setLoading(false);
     }
@@ -38,8 +91,10 @@ const InstructorAnalytics = () => {
 
 
   const formatTimeAgo = (dateString) => {
+    if (!dateString) return '—';
     const now = new Date();
     const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return '—';
     const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
     
     if (diffInDays === 0) return 'Today';
@@ -178,7 +233,10 @@ const InstructorAnalytics = () => {
           <div className="category-breakdown">
             <h3>Performance by Category</h3>
             <div className="category-grid">
-              {Object.entries(analytics.categoryBreakdown).map(([category, data]) => (
+              {Object.keys(analytics.categoryBreakdown || {}).length === 0 ? (
+                <p className="text-sm text-gray-500 col-span-full">No category breakdown available yet.</p>
+              ) : null}
+              {Object.entries(analytics.categoryBreakdown || {}).map(([category, data]) => (
                 <div key={category} className="category-card">
                   <h4>{category.charAt(0).toUpperCase() + category.slice(1)}</h4>
                   <div className="category-stats">
@@ -220,7 +278,10 @@ const InstructorAnalytics = () => {
               <div className="col">Avg Score</div>
               <div className="col">Learning Hours</div>
             </div>
-            {analytics.courseAnalytics.map((course) => (
+            {(analytics.courseAnalytics || []).length === 0 ? (
+              <p className="text-sm text-gray-500 py-6">No course metrics yet.</p>
+            ) : null}
+            {(analytics.courseAnalytics || []).map((course) => (
               <div key={course.courseId} className="table-row">
                 <div className="col course-title">
                   <h4>{course.courseTitle}</h4>
@@ -274,19 +335,23 @@ const InstructorAnalytics = () => {
               <div className="col">Last Activity</div>
               <div className="col">Status</div>
             </div>
-            {analytics.studentPerformance.map((student, index) => {
+            {(analytics.studentPerformance || []).length === 0 ? (
+              <p className="text-sm text-gray-500 py-6">No per-student data is returned by the API yet. Check back after students enroll and take quizzes.</p>
+            ) : null}
+            {(analytics.studentPerformance || []).map((student, index) => {
               const status = getCompletionStatus(student.completionPercentage);
               const StatusIcon = status.icon;
+              const name = student.studentName || 'Student';
               
               return (
                 <div key={`${student.studentId}-${student.courseId}-${index}`} className="table-row">
                   <div className="col student-info">
                     <div className="student-avatar">
-                      {student.studentName.charAt(0)}
+                      {name.charAt(0)}
                     </div>
                     <div>
-                      <h4>{student.studentName}</h4>
-                      <p className="student-email">{student.studentEmail}</p>
+                      <h4>{name}</h4>
+                      <p className="student-email">{student.studentEmail || ''}</p>
                     </div>
                   </div>
                   <div className="col">
@@ -333,7 +398,10 @@ const InstructorAnalytics = () => {
         <div className="analytics-content">
           <h3>Recent Student Activity</h3>
           <div className="activity-list">
-            {analytics.recentActivity.map((activity, index) => (
+            {(analytics.recentActivity || []).length === 0 ? (
+              <p className="text-sm text-gray-500 py-6">No recent activity from the server yet.</p>
+            ) : null}
+            {(analytics.recentActivity || []).map((activity, index) => (
               <div key={index} className="activity-item">
                 <div className="activity-icon">
                   {activity.activity === 'Completed course' ? <CheckCircle size={20} /> :
@@ -341,8 +409,8 @@ const InstructorAnalytics = () => {
                    <Users size={20} />}
                 </div>
                 <div className="activity-content">
-                  <h4>{activity.studentName}</h4>
-                  <p>{activity.activity} in <strong>{activity.courseTitle}</strong></p>
+                  <h4>{activity.studentName || 'Student'}</h4>
+                  <p>{activity.activity || 'Activity'} in <strong>{activity.courseTitle || 'Course'}</strong></p>
                   <div className="activity-meta">
                     <span className="completion">{activity.completionPercentage}% complete</span>
                     <span className="time">{formatTimeAgo(activity.lastAccessed)}</span>

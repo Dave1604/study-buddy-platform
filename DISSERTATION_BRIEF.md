@@ -28,7 +28,7 @@ This brief contains every factual detail needed to write the full dissertation f
 - **Platform name:** Study Buddy
 - **Student:** Adewara Oluwapelumi (Pelz)
 - **University:** Arden University
-- **Degree:** BSc Computer Science (Final Year Project)
+- **Degree:** BSc Computing (Final Year Project)
 - **Target word count:** 10,000–12,000 words (appendices excluded)
 - **GitHub:** https://github.com/Dave1604/study-buddy-platform
 
@@ -196,11 +196,6 @@ Three-tier architecture:
 - **Data tier:** Supabase hosted PostgreSQL (cloud-managed).
 
 The frontend and backend communicate via REST over HTTPS. All API routes are prefixed `/api/`. In production, the frontend calls `/api/*` which Vercel's routing proxies to the serverless Express function.
-
-**Environment configuration (two-file approach):**
-- Root `.env` — server-only secrets: `JWT_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `PORT`. Never exposed to the browser.
-- `client/.env` — frontend-only config: `REACT_APP_API_URL=http://localhost:5001/api` for local dev. In production, the frontend detects `NODE_ENV === 'production'` and uses `/api` directly (same domain, no CORS needed). React's build process strips all `REACT_APP_*` variables at compile time; non-prefixed variables are ignored entirely, preventing accidental exposure of server secrets.
-- On Vercel, environment variables are set via the dashboard (JWT_SECRET, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY) and are injected at runtime into the serverless function — never bundled into the client.
 
 ### 4.4 Application Pages (14 total)
 
